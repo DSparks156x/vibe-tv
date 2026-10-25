@@ -64,12 +64,11 @@ The first commit that touches `nuvio/` is an unmodified snapshot of upstream (th
 its message), so `git diff <that commit> -- nuvio` shows exactly what the fork changes.
 
 ## Installing
-Grab `vibe-launcher.apk` and the `vibe-nuvio-*.apk` for your TV (most are `armeabi-v7a`) from
-[Releases](../../releases), install both with `adb install`, then follow steps 4 to 6 of
-[docs/setup.md](docs/setup.md). Keys and servers are set in the launcher's Settings, or from your phone
-with the QR code shown there.
+Grab `vibe-launcher.apk` and the Nuvio APK for your TV from [Releases](../../releases), install both, and
+set Vibe as the home app. Step by step: [docs/install.md](docs/install.md). Accounts, assistant keys and the
+rest are set in the launcher's Settings, or from your phone with the QR code shown there.
 
-To build it yourself, see [docs/setup.md](docs/setup.md).
+To build it yourself, see [docs/building.md](docs/building.md).
 
 ## License
 GPL-3.0 (see [LICENSE](LICENSE)). NuvioTV is GPL-3.0, and the launcher uses the same license.

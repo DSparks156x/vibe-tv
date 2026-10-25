@@ -1,4 +1,6 @@
-# Setup
+# Building
+
+For installing a release, see [install.md](install.md). This page is for building the APKs yourself.
 
 ## Requirements
 - JDK 17+ (Android Studio's bundled JBR works) and `adb`.
@@ -71,38 +73,15 @@ Compiling ahead of time makes a big difference on slow TV CPUs:
 adb shell cmd package compile -m speed -f com.vibe.tvlauncher
 ```
 
-## 4. Make it the home screen
-Press Home and pick Vibe, or set it from Settings > Apps > Default apps > Home app.
+## 4. App keys (optional)
+Release builds get these from repo secrets in CI (see `.github/workflows/release.yml`). For your own
+build, put them in `nuvio/local.properties`: `TMDB_API_KEY`, `TRAKT_CLIENT_ID`, `TRAKT_CLIENT_SECRET`,
+`SIMKL_CLIENT_ID`, `MDBLIST_CLIENT_ID`, `PREMIUMIZE_CLIENT_ID`. Without them, the matching integrations are off.
 
-Some Google TV builds keep forcing their own launcher. On those, disable the stock launcher. This is
-reversible with `pm enable`:
-```bash
-adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
-```
-```bash
-adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
-```
+A default account server can be baked in with `NUVIO_SUPABASE_URL`, `NUVIO_SUPABASE_ANON_KEY` and
+`AVATAR_PUBLIC_BASE_URL` (`<url>/storage/v1/object/public/avatars`). Otherwise users pick one in Settings.
 
-## 5. Mic button → Vibe assistant (optional)
-Settings > Apps > Default apps > Digital assistant app > **Vibe**, or:
-```bash
-adb shell cmd role add-role-holder --user 0 android.app.role.ASSISTANT com.vibe.tvlauncher 0
-```
-To undo, pick Google again in the same setting.
-
-Optionally, set an LLM endpoint for free-form requests: open the overlay, then the gear icon. You can
-also set it over adb:
-```bash
-adb shell am start -n com.vibe.tvlauncher/.voice.VoiceActivity --es provider groq --es apiKey <your key>
-```
-`provider` is `groq`, `gemini` or `custom` (with `--es baseUrl <url>`, e.g. a local Ollama server).
-
-## 6. Nuvio account / backend
-Nuvio works without an account. For sync, either sign in to the public Nuvio service or run your own
-backend ([NuvioMedia/self-host](https://github.com/NuvioMedia/self-host)). To connect to your own:
-- **No rebuild:** in Nuvio, go to Settings > Account > "Connect to custom server" and enter your server URL.
-- **Build default:** set `NUVIO_SUPABASE_URL`, `NUVIO_SUPABASE_ANON_KEY` and `AVATAR_PUBLIC_BASE_URL`
-  (`<url>/storage/v1/object/public/avatars`) in `nuvio/local.properties`.
+Then continue with [install.md](install.md) from step 3.
 
 ## Extras: `launcher/tools/`
 - `rebrand_tizentube.ps1`: relabels a [TizenTube](https://github.com/reisxd/TizenTubeCobalt) APK as
