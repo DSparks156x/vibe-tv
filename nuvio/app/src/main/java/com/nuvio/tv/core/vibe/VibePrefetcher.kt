@@ -1,6 +1,7 @@
 package com.nuvio.tv.core.vibe
 
 import android.util.Log
+import com.nuvio.tv.core.debrid.DirectDebridResolveResult
 import com.nuvio.tv.core.debrid.DirectDebridResolver
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.player.PlayerSessionTracker
@@ -115,7 +116,15 @@ class VibePrefetcher @Inject constructor(
             return
         }
         val result = directDebridResolver.resolve(pick, request.season, request.episode)
-        Log.i(TAG, "resolve ${request.videoId}: ${result.javaClass.simpleName}")
+        // Spelled out: release builds obfuscate class names.
+        val outcome = when (result) {
+            is DirectDebridResolveResult.Success -> "resolved"
+            DirectDebridResolveResult.MissingApiKey -> "missing api key"
+            DirectDebridResolveResult.NotCached -> "not cached"
+            DirectDebridResolveResult.Stale -> "stale"
+            DirectDebridResolveResult.Error -> "error"
+        }
+        Log.i(TAG, "resolve ${request.videoId}: $outcome")
     }
 
     /** The stream StreamScreenViewModel would auto-play from [groups], or null when it would wait for the user. */
