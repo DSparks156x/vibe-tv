@@ -68,6 +68,9 @@ Grab `vibe-launcher.apk` and the Nuvio APK for your TV from [Releases](../../rel
 set Vibe as the home app. Step by step: [docs/install.md](docs/install.md). Accounts, assistant keys and the
 rest are set in the launcher's Settings, or from your phone with the QR code shown there.
 
+Which sources to connect (add-ons, debrid, Plex, Jellyfin, Overseerr…): [docs/setups.md](docs/setups.md).
+Setting it up with an AI agent: point it at [docs/agent-setup.md](docs/agent-setup.md).
+
 To build it yourself, see [docs/building.md](docs/building.md).
 
 ## License
