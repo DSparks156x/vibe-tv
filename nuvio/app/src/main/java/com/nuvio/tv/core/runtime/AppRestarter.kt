@@ -1,11 +1,8 @@
 package com.nuvio.tv.core.runtime
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.content.Context
 import android.net.Uri
 import android.os.Process
-import android.os.SystemClock
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,24 +24,11 @@ class AppRestarter @Inject constructor(
             android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
                 android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
         )
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            RESTART_REQUEST_CODE,
-            launchIntent,
-            PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmManager.set(
-            AlarmManager.ELAPSED_REALTIME,
-            SystemClock.elapsedRealtime() + RESTART_DELAY_MS,
-            pendingIntent
-        )
+        // Vibe fork: start the new task now, while this process is still on screen, and let the
+        // system bring it up in a fresh process. An alarm firing after the process is gone is a
+        // background activity start, which Android 14 blocks (BAL_BLOCK).
+        context.startActivity(launchIntent)
         Process.killProcess(Process.myPid())
         exitProcess(0)
-    }
-
-    private companion object {
-        const val RESTART_REQUEST_CODE = 8842
-        const val RESTART_DELAY_MS = 400L
     }
 }

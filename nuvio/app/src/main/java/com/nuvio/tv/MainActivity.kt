@@ -748,16 +748,22 @@ open class MainActivity : ComponentActivity() {
                     var startupDestination = StartupDestination.Loading
                     val surfaceContentReady = hasSeenAuthQrOnFirstLaunch != null &&
                         authState !is AuthState.Loading
+                    val canSignIn = activeServerConfiguration.capabilities.tvLogin ||
+                        activeServerConfiguration.capabilities.emailPasswordAuth
+                    // Vibe fork: nuvio://account while signed out goes to sign-in ahead of any first-run
+                    // setup (switching account wipes the profile's layout choice along with the session).
+                    val pendingStartupLink by pendingDeepLinkUrl.collectAsState()
+                    val accountLinkSignIn = canSignIn &&
+                        pendingStartupLink?.let(DeepLinkParser::parse) is AppDeepLink.Account
 
                     if (!surfaceContentReady) {
                         // Still loading auth state; nothing to show yet.
                     } else if (
-                        hasSeenAuthQrOnFirstLaunch == false &&
+                        (hasSeenAuthQrOnFirstLaunch == false || accountLinkSignIn) &&
                         authState !is AuthState.FullAccount &&
                         !onboardingCompletedThisSession &&
                         // Vibe fork: "No account" (the default without a backend) has nothing to sign into.
-                        (activeServerConfiguration.capabilities.tvLogin ||
-                            activeServerConfiguration.capabilities.emailPasswordAuth)
+                        canSignIn
                     ) {
                         startupDestination = StartupDestination.Setup
                         AuthQrSignInScreen(
@@ -790,6 +796,7 @@ open class MainActivity : ComponentActivity() {
                                         }
                                     }
                                     appOnboardingDataStore.setHasSeenAuthQrOnFirstLaunch(true)
+                                    if (accountLinkSignIn) pendingDeepLinkUrl.value = null
                                     onboardingCompletedThisSession = true
                                     onboardingProfileSyncInProgress = false
                                 }
@@ -1050,8 +1057,6 @@ open class MainActivity : ComponentActivity() {
                                 // Wait for the stored session, or a signed-in user lands on sign-in.
                                 if (authState is AuthState.Loading) return@LaunchedEffect
                                 pendingDeepLinkUrl.value = null
-                                val canSignIn = activeServerConfiguration.capabilities.tvLogin ||
-                                    activeServerConfiguration.capabilities.emailPasswordAuth
                                 if (canSignIn && authState !is AuthState.FullAccount) {
                                     navController.navigate(Screen.AuthQrSignIn.route) {
                                         launchSingleTop = true

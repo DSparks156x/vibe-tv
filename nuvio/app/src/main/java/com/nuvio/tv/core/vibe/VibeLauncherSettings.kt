@@ -176,7 +176,8 @@ class VibeLauncherSettings(
         const val KEY_BACKEND_URL = "backend_url"
         const val KEY_ACCOUNT_MODE = "account_mode"
         private const val TAG = "VibeLauncherSettings"
-        private const val RESTART_DELAY_MS = 1_000L
+        // Just long enough for the call() reply to reach the launcher.
+        private const val RESTART_DELAY_MS = 200L
         private const val ACCOUNT_DEEP_LINK = "nuvio://account"
     }
 }

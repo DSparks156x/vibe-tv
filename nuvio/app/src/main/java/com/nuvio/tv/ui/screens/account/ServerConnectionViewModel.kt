@@ -56,6 +56,15 @@ class ServerConnectionViewModel @Inject constructor(
                     _uiState.update { it.copy(isDiscovering = false, discoveredServer = server) }
                 },
                 onFailure = { error ->
+                    // Vibe fork: OFFICIAL_SERVER means "this build's own backend". From no account or
+                    // the official service, switch back to it (the build default) instead of refusing.
+                    val buildServer = (error as? ServerDiscoveryException)?.failure == ServerDiscoveryFailure.OFFICIAL_SERVER
+                    val onBuildServer = _uiState.value.accountMode == AccountMode.CUSTOM && !_uiState.value.activeServer.isCustom
+                    if (buildServer && !onBuildServer && configurationStore.hasBuildBackend()) {
+                        _uiState.update { it.copy(isDiscovering = false) }
+                        switchServer(configurationStore::useOfficial)
+                        return@fold
+                    }
                     _uiState.update {
                         it.copy(isDiscovering = false, error = discoveryErrorMessage(error))
                     }
@@ -121,7 +130,8 @@ class ServerConnectionViewModel @Inject constructor(
                 }
                 return@launch
             }
-            if (!appRestarter.restart()) {
+            // Vibe fork: come back up on sign-in for the new account backend.
+            if (!appRestarter.restart(android.net.Uri.parse("nuvio://account"))) {
                 _uiState.update {
                     it.copy(isSwitching = false, error = context.getString(R.string.custom_server_restart_failed))
                 }
@@ -135,10 +145,11 @@ class ServerConnectionViewModel @Inject constructor(
         return when (discoveryError.failure) {
             ServerDiscoveryFailure.INVALID_URL -> context.getString(R.string.custom_server_error_invalid_url)
             ServerDiscoveryFailure.OFFICIAL_SERVER -> context.getString(
-                if (_uiState.value.activeServer.isCustom) {
-                    R.string.custom_server_error_official_available
-                } else {
-                    R.string.custom_server_error_official_active
+                when {
+                    _uiState.value.activeServer.isCustom -> R.string.custom_server_error_official_available
+                    // Vibe fork: the build's own backend is not api.nuvio.tv.
+                    configurationStore.hasBuildBackend() -> R.string.vibe_account_build_server_active
+                    else -> R.string.custom_server_error_official_active
                 }
             )
             ServerDiscoveryFailure.CONNECTION_FAILED -> context.getString(R.string.custom_server_error_connection)
