@@ -118,8 +118,12 @@ class TraktAuthService @Inject constructor(
     }
 
     fun hasRequiredCredentials(): Boolean {
-        return BuildConfig.TRAKT_CLIENT_ID.isNotBlank() && BuildConfig.TRAKT_CLIENT_SECRET.isNotBlank()
+        // Vibe fork: new Trakt apps are public (PKCE-era) clients with no secret; the ID is enough.
+        return BuildConfig.TRAKT_CLIENT_ID.isNotBlank()
     }
+
+    /** Sent only when the build has one; null is left out of the request body. */
+    private fun traktClientSecret(): String? = BuildConfig.TRAKT_CLIENT_SECRET.takeIf { it.isNotBlank() }
 
     suspend fun getCurrentAuthState(): TraktAuthState = traktAuthDataStore.getCurrentState()
 
@@ -213,7 +217,7 @@ class TraktAuthService @Inject constructor(
                 TraktDeviceTokenRequestDto(
                     code = deviceCode,
                     clientId = BuildConfig.TRAKT_CLIENT_ID,
-                    clientSecret = BuildConfig.TRAKT_CLIENT_SECRET
+                    clientSecret = traktClientSecret()
                 )
             )
         } catch (e: IOException) {
@@ -276,7 +280,7 @@ class TraktAuthService @Inject constructor(
                     TraktRefreshTokenRequestDto(
                         refreshToken = refreshToken,
                         clientId = BuildConfig.TRAKT_CLIENT_ID,
-                        clientSecret = BuildConfig.TRAKT_CLIENT_SECRET,
+                        clientSecret = traktClientSecret(),
                         redirectUri = traktRedirectUri()
                     )
                 )
@@ -311,7 +315,7 @@ class TraktAuthService @Inject constructor(
                         TraktRevokeRequestDto(
                             token = accessToken,
                             clientId = BuildConfig.TRAKT_CLIENT_ID,
-                            clientSecret = BuildConfig.TRAKT_CLIENT_SECRET
+                            clientSecret = traktClientSecret()
                         )
                     )
                 }
