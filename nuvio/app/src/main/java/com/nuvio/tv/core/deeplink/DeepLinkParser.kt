@@ -26,7 +26,7 @@ object DeepLinkParser {
             .orEmpty()
             .mapNotNull { segment -> decode(segment).trim().takeIf(String::isNotBlank) }
 
-        return when (host) {
+        val meta = when (host) {
             "meta" -> parseMetaFromParameters(parsedUrl) ?: parseMetaFromPath(pathSegments)
             "detail", "details", "open", "watch" -> parseMetaFromPath(pathSegments)
             "movie", "movies", "series", "show", "shows", "tv" -> {
@@ -39,6 +39,10 @@ object DeepLinkParser {
                 ?.let(::normalizePartyCode)
                 ?.takeIf { it.length == PARTY_CODE_LENGTH }
                 ?.let(AppDeepLink::Party)
+            "search" -> AppDeepLink.Search(
+                firstParameter(queryParameters(parsedUrl), "q", "query")
+                    ?: pathSegments.firstOrNull()
+            )
             "auth" -> null
             else -> {
                 if (looksLikeAddonHost(host)) {
@@ -48,6 +52,23 @@ object DeepLinkParser {
                 }
             }
         }
+        return if (meta is AppDeepLink.Meta) withPlaybackOptions(meta, parsedUrl) else meta
+    }
+
+    /** Vibe fork: `playOnLoad=1|true` plus optional `season`/`episode` on any title link. */
+    private fun withPlaybackOptions(meta: AppDeepLink.Meta, parsedUrl: URI): AppDeepLink.Meta {
+        val parameters = queryParameters(parsedUrl)
+        val playOnLoad = firstParameter(parameters, "playOnLoad", "play")
+            ?.lowercase()
+            ?.let { it == "1" || it == "true" || it == "yes" } == true
+        val season = firstParameter(parameters, "season")?.toIntOrNull()
+        val episode = firstParameter(parameters, "episode")?.toIntOrNull()
+        val hasEpisode = season != null && episode != null
+        return meta.copy(
+            playOnLoad = playOnLoad,
+            season = if (hasEpisode) season else null,
+            episode = if (hasEpisode) episode else null
+        )
     }
 
     private fun parseMetaFromParameters(parsedUrl: URI): AppDeepLink.Meta? {

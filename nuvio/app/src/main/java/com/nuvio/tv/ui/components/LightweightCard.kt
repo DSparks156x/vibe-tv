@@ -47,6 +47,7 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.Glow
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.MaterialTheme
+import com.nuvio.tv.ui.theme.NuvioMotion
 import androidx.tv.material3.contentColorFor
 import androidx.tv.material3.surfaceColorAtElevation
 import kotlinx.coroutines.launch
@@ -72,6 +73,7 @@ fun LightweightCard(
     modifier: Modifier = Modifier,
     focusedBorder: Border = Border.None,
     focusedGlow: Glow = Glow.None,
+    focusedScale: Float = 1f,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -80,6 +82,12 @@ fun LightweightCard(
     val zIndex = animateFloatAsState(
         targetValue = if (focused) FOCUSED_Z_INDEX else NON_FOCUSED_Z_INDEX,
         label = "zIndex"
+    )
+    // Read only inside graphicsLayer {} so the animation never recomposes the card.
+    val scale = animateFloatAsState(
+        targetValue = if (focused && !pressed) focusedScale else 1f,
+        animationSpec = NuvioMotion.focusTween(),
+        label = "scale"
     )
     val border = if (focused || pressed) focusedBorder else Border.None
     val glow = if (focused && !pressed) focusedGlow else Glow.None
@@ -126,7 +134,10 @@ fun LightweightCard(
                     }
                     onLongClick { false }
                 }
-                .graphicsLayer(scaleX = 1f, scaleY = 1f)
+                .graphicsLayer {
+                    scaleX = scale.value
+                    scaleY = scale.value
+                }
                 .then(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         CardGlowElement(shape, glowBlurRadiusPx, glowColor)

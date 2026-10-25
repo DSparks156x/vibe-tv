@@ -51,3 +51,16 @@ object NuvioPrimitives {
     val imdb = Color(0xFFF5C518)
     val mdblist = Color(0xFF7DD3FC)
 }
+
+/** Vibe TV launcher design tokens (shared look with com.vibe.tvlauncher). */
+object VibeTokens {
+    val background = Color(0xFF101114)
+    val elevated = Color(0xFF17181C)
+    val card = Color(0xFF1E2025)
+    val cardVariant = Color(0xFF2A2C31)
+    val selected = Color(0xFF3C3F44) // ~white @20% over card
+    val text = Color(0xFFE8EAED)
+    val textSecondary = Color(0xFF9AA0A6)
+    val accent = Color(0xFF8AB4F8)
+    val onFocus = Color(0xFF202124)
+}

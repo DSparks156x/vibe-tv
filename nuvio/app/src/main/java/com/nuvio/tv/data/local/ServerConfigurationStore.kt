@@ -34,7 +34,8 @@ class ServerConfigurationStore @Inject constructor(
             isCustom = true,
             discoveryUrl = preferences.getString(KEY_DISCOVERY_URL, null),
             tvLoginWebBaseUrl = "$backendUrl/tv-login",
-            deviceLoginWebBaseUrl = "$backendUrl/link",
+            // Self-host dashboards serve /tv-login only, so custom servers use that QR flow.
+            deviceLoginWebBaseUrl = null,
             avatarPublicBaseUrl = "$backendUrl/storage/v1/object/public/avatars"
         )
     }
@@ -63,7 +64,8 @@ class ServerConfigurationStore @Inject constructor(
         backendUrl = BuildConfig.SUPABASE_URL.trimEnd('/'),
         publishableKey = BuildConfig.SUPABASE_ANON_KEY,
         capabilities = ServerCapabilities(
-            emailPasswordAuth = false,
+            // Self-hosted backends allow email/password sign-in (see /.well-known/nuvio).
+            emailPasswordAuth = BuildConfig.SELF_HOSTED_BACKEND,
             tvLogin = true,
             watchParty = true
         ),

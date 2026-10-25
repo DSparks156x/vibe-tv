@@ -23,10 +23,39 @@ data class ThemeColorPalette(
     val field: Color = NuvioPrimitives.neutral850,
     val menu: Color = NuvioPrimitives.neutral875,
     val modal: Color = NuvioPrimitives.neutral900,
-    val playerOverlay: Color = Color(0xCC000000)
+    val playerOverlay: Color = Color(0xCC000000),
+    val textPrimary: Color = NuvioPrimitives.white,
+    val textSecondary: Color = NuvioPrimitives.neutral400,
+    val textTertiary: Color = NuvioPrimitives.neutral600,
+    val divider: Color = NuvioPrimitives.neutral750
 )
 
 object ThemeColors {
+    // Matches the Vibe TV launcher (Google TV look): neutral graphite surfaces, white focus,
+    // white pills with dark text when focused.
+    val Vibe = ThemeColorPalette(
+        secondary = NuvioPrimitives.white,
+        secondaryVariant = VibeTokens.text,
+        onSecondary = VibeTokens.onFocus,
+        onSecondaryVariant = VibeTokens.onFocus,
+        focusRing = NuvioPrimitives.white,
+        focusBackground = VibeTokens.selected,
+        background = VibeTokens.background,
+        backgroundElevated = VibeTokens.elevated,
+        backgroundCard = VibeTokens.card,
+        surface = VibeTokens.card,
+        surfaceVariant = VibeTokens.cardVariant,
+        panel = VibeTokens.elevated,
+        overlay = Color(0xD9101114),
+        field = VibeTokens.cardVariant,
+        menu = VibeTokens.card,
+        modal = VibeTokens.card,
+        textPrimary = VibeTokens.text,
+        textSecondary = VibeTokens.textSecondary,
+        textTertiary = Color(0xFF80868B),
+        divider = Color(0xFF3C4043)
+    )
+
     val Crimson = ThemeColorPalette(
         secondary = NuvioPrimitives.red500,
         secondaryVariant = NuvioPrimitives.red600,
@@ -109,6 +138,7 @@ object ThemeColors {
             AppTheme.AMBER -> Amber
             AppTheme.ROSE -> Rose
             AppTheme.WHITE -> White
+            AppTheme.VIBE -> Vibe
         }
     }
 }

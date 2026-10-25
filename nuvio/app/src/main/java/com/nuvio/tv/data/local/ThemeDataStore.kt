@@ -46,11 +46,11 @@ class ThemeDataStore @Inject constructor(
 
     val selectedFont: Flow<AppFont> = profileManager.activeProfileId.flatMapLatest { pid ->
         factory.get(pid, FEATURE).data.map { prefs ->
-            val fontName = prefs[fontKey] ?: AppFont.INTER.name
+            val fontName = prefs[fontKey] ?: AppFont.GOOGLE_SANS.name
             try {
                 AppFont.valueOf(fontName)
             } catch (e: IllegalArgumentException) {
-                AppFont.INTER
+                AppFont.GOOGLE_SANS
             }
         }
     }

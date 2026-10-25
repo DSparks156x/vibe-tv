@@ -79,18 +79,26 @@ val devProperties = Properties().apply {
 }
 
 val enableDoviNative = parseBooleanProperty(
-    resolveProperty(devProperties, localProperties, "DOVI_NATIVE_ENABLED")
+    resolveProperty(devProperties, localProperties, "DOVI_NATIVE_ENABLED", "true")
 )
 val doviExtractorHookReady = parseBooleanProperty(
-    resolveProperty(devProperties, localProperties, "DOVI_EXTRACTOR_HOOK_READY")
+    resolveProperty(devProperties, localProperties, "DOVI_EXTRACTOR_HOOK_READY", "true")
 )
 val doviEnableRealLink = parseBooleanProperty(
-    resolveProperty(devProperties, localProperties, "DOVI_ENABLE_REAL_LINK")
+    resolveProperty(devProperties, localProperties, "DOVI_ENABLE_REAL_LINK", "true")
 )
 val doviStaticLibPath = resolveProperty(devProperties, localProperties, "DOVI_LIBDOVI_STATIC_LIB")
 val doviIncludeDirPath = resolveProperty(devProperties, localProperties, "DOVI_LIBDOVI_INCLUDE_DIR")
 val doviPrebuiltRootPath = resolveProperty(devProperties, localProperties, "DOVI_LIBDOVI_PREBUILT_ROOT")
 val sponsorNames = resolveProperty(devProperties, localProperties, "SPONSOR_NAMES", "ragmehos.")
+
+// Vibe fork: SELF_HOSTED=true (NuvioMedia/self-host backend) derives the QR sign-in page from
+// NUVIO_SUPABASE_URL instead of nuvio.tv. The self-host dashboard serves /tv-login but no /link page,
+// so the device-login URL stays empty and the app uses the /tv-login flow.
+val selfHostedBackend = localProperties.getProperty("SELF_HOSTED", "false").trim().equals("true", ignoreCase = true)
+val selfHostedBaseUrl = localProperties.getProperty("NUVIO_SUPABASE_URL", "").trim().trimEnd('/')
+val defaultTvLoginWebBaseUrl = if (selfHostedBackend) "$selfHostedBaseUrl/tv-login" else "https://nuvio.tv/tv-login"
+val defaultDeviceLoginWebBaseUrl = if (selfHostedBackend) "" else "https://nuvio.tv/link"
 val sentryDsn = providers.environmentVariable("SENTRY_DSN").orNull?.trim()?.takeIf { it.isNotBlank() }
     ?: resolveProperty(devProperties, localProperties, "SENTRY_DSN")
 val sentryAuthToken = providers.environmentVariable("SENTRY_AUTH_TOKEN").orNull?.trim()?.takeIf { it.isNotBlank() }
@@ -110,7 +118,7 @@ fun truthy(value: String?): Boolean {
 }
 
 val buildingAppBundle = gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }
-val useDebugReleaseSigning = env("CI_USE_DEBUG_SIGNING").equals("true", ignoreCase = true)
+val ciUseDebugSigning = env("CI_USE_DEBUG_SIGNING").equals("true", ignoreCase = true)
 val useLocalFfmpegDecoder = truthy(
     providers.gradleProperty("useLocalFfmpegDecoder").orNull
         ?: env("USE_LOCAL_FFMPEG_DECODER")
@@ -124,6 +132,11 @@ val releaseKeyPasswordValue = env("NUVIO_RELEASE_KEY_PASSWORD")
     ?: localProperties.getProperty("NUVIO_RELEASE_KEY_PASSWORD", "815787")
 val releaseStorePasswordValue = env("NUVIO_RELEASE_STORE_PASSWORD")
     ?: localProperties.getProperty("NUVIO_RELEASE_STORE_PASSWORD", "815787")
+// Vibe fork: a fresh clone builds with zero config. Without a release keystore (NUVIO_RELEASE_STORE_FILE
+// or ./nuviotv.jks) every build is signed with this machine's debug key. Build the launcher on the same
+// machine and both apps share a signature, so the signature-protected launcher provider still works.
+val hasReleaseKeystore = releaseStoreFilePath?.isNotBlank() == true || rootProject.file("nuviotv.jks").exists()
+val useDebugReleaseSigning = ciUseDebugSigning || !hasReleaseKeystore
 
 android {
     namespace = "com.nuvio.tv"
@@ -139,7 +152,7 @@ android {
         versionName = "1.1.0-beta.8"
 
         buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
-        buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "")}\"")
+        buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "https://api.introdb.app/")}\"")
         buildConfigField("String", "TRAILER_API_URL", "\"${localProperties.getProperty("TRAILER_API_URL", "")}\"")
         buildConfigField("String", "IMDB_RATINGS_API_BASE_URL", "\"${localProperties.getProperty("IMDB_RATINGS_API_BASE_URL", "")}\"")
         buildConfigField("String", "IMDB_TAPFRAME_API_BASE_URL", "\"${localProperties.getProperty("IMDB_TAPFRAME_API_BASE_URL", "")}\"")
@@ -151,8 +164,9 @@ android {
         buildConfigField("String", "SIMKL_APP_NAME", buildConfigString(resolveProperty(devProperties, localProperties, "SIMKL_APP_NAME", "nuvio")))
         buildConfigField("String", "MDBLIST_CLIENT_ID", buildConfigString(resolveProperty(devProperties, localProperties, "MDBLIST_CLIENT_ID")))
         buildConfigField("String", "TMDB_API_KEY", "\"${localProperties.getProperty("TMDB_API_KEY", "")}\"")
-        buildConfigField("String", "TV_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("TV_LOGIN_WEB_BASE_URL", "https://nuvio.tv/tv-login")}\"")
-        buildConfigField("String", "DEVICE_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("DEVICE_LOGIN_WEB_BASE_URL", "https://nuvio.tv/link")}\"")
+        buildConfigField("String", "TV_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("TV_LOGIN_WEB_BASE_URL", defaultTvLoginWebBaseUrl)}\"")
+        buildConfigField("String", "DEVICE_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("DEVICE_LOGIN_WEB_BASE_URL", defaultDeviceLoginWebBaseUrl)}\"")
+        buildConfigField("boolean", "SELF_HOSTED_BACKEND", selfHostedBackend.toString())
         buildConfigField("boolean", "DOVI_NATIVE_ENABLED", enableDoviNative.toString())
         buildConfigField("boolean", "DOVI_EXTRACTOR_HOOK_READY", doviExtractorHookReady.toString())
         if (enableDoviNative) {
@@ -185,8 +199,10 @@ android {
     productFlavors {
         create("full") {
             dimension = "distribution"
+            // Vibe fork: own package so it never collides with (or gets "updated" to) official Nuvio.
+            applicationId = "com.vibe.nuvio"
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "true")
-            buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "true")
+            buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "true")
@@ -223,7 +239,7 @@ android {
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName(if (useDebugReleaseSigning) "debug" else "release")
             isDebuggable = parseBooleanProperty(providers.gradleProperty("debuggable").orNull)
             isMinifyEnabled = false
 
@@ -269,10 +285,10 @@ android {
             buildConfigField("String", "SUPABASE_URL", buildConfigString(localProperties.getProperty("NUVIO_SUPABASE_URL", "")))
             buildConfigField("String", "SUPABASE_ANON_KEY", buildConfigString(localProperties.getProperty("NUVIO_SUPABASE_ANON_KEY", "")))
             buildConfigField("String", "SUPABASE_FALLBACK_URL", buildConfigString(localProperties.getProperty("NUVIO_SUPABASE_FALLBACK_URL", "")))
-            buildConfigField("String", "TV_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("TV_LOGIN_WEB_BASE_URL", "https://nuvio.tv/tv-login")}\"")
-            buildConfigField("String", "DEVICE_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("DEVICE_LOGIN_WEB_BASE_URL", "https://nuvio.tv/link")}\"")
+            buildConfigField("String", "TV_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("TV_LOGIN_WEB_BASE_URL", defaultTvLoginWebBaseUrl)}\"")
+            buildConfigField("String", "DEVICE_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("DEVICE_LOGIN_WEB_BASE_URL", defaultDeviceLoginWebBaseUrl)}\"")
             buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
-            buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "")}\"")
+            buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "https://api.introdb.app/")}\"")
             buildConfigField("String", "TRAILER_API_URL", "\"${localProperties.getProperty("TRAILER_API_URL", "")}\"")
             buildConfigField("String", "IMDB_RATINGS_API_BASE_URL", "\"${localProperties.getProperty("IMDB_RATINGS_API_BASE_URL", "")}\"")
             buildConfigField("String", "IMDB_TAPFRAME_API_BASE_URL", "\"${localProperties.getProperty("IMDB_TAPFRAME_API_BASE_URL", "")}\"")
@@ -305,8 +321,10 @@ android {
         abi {
             isEnable = !buildingAppBundle
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            isUniversalApk = true
+            // Vibe fork: VIBE_ABIS in local.properties (e.g. "armeabi-v7a") limits the ABI splits for a specific device.
+            val vibeAbis = localProperties.getProperty("VIBE_ABIS")?.split(",")?.map { it.trim() }
+            include(*(vibeAbis ?: listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")).toTypedArray())
+            isUniversalApk = vibeAbis == null
         }
     }
 

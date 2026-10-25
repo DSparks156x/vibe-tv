@@ -338,6 +338,7 @@
     <string name="theme_color_emerald">Emerald</string>
     <string name="theme_color_amber">Amber</string>
     <string name="theme_color_rose">Rose</string>
+    <string name="theme_color_vibe" translatable="false">Vibe</string>
     <string name="theme_color_white">White</string>
     <string name="theme_color_custom">Custom</string>
     <string name="custom_theme_title">Your custom gradient</string>

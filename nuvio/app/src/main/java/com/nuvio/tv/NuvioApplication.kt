@@ -44,6 +44,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
 
     @Inject lateinit var startupSyncService: StartupSyncService
     @Inject lateinit var androidTvChannelSyncService: AndroidTvChannelSyncService
+    @Inject lateinit var vibeLauncherNotifier: com.nuvio.tv.core.vibe.VibeLauncherNotifier
     @Inject lateinit var sentrySettingsDataStore: SentrySettingsDataStore
     @Inject lateinit var imagePerformancePreferences: ImagePerformancePreferences
     @Inject lateinit var simklAnimeIdPreferenceHolder: SimklAnimeIdPreferenceHolder
@@ -84,6 +85,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
         SentryInitializer.start(this, sentrySettingsDataStore)
         PluginRuntimeHooks.onApplicationCreate(this)
         androidTvChannelSyncService.start()
+        vibeLauncherNotifier.start()
         serverUserStateProjection.start()
         // Load locale synchronously so it's available before Activity.attachBaseContext.
         // SharedPreferences reads are fast (cached in memory after first access).

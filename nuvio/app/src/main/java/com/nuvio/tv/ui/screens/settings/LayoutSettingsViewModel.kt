@@ -74,7 +74,7 @@ data class LayoutSettingsUiState(
     val blurContinueWatchingNextUp: Boolean = false,
     val useEpisodeThumbnailsInCw: Boolean = true,
     val detailPageTrailerButtonEnabled: Boolean = true,
-    val detailPageTrailerAutoplayEnabled: Boolean = true,
+    val detailPageTrailerAutoplayEnabled: Boolean = false,
     val detailPageTrailerAutoplayDelaySeconds: Int = 7,
     val detailPageTrailerPlayInBackground: Boolean = false,
     val detailPageTrailerPauseOnScroll: Boolean = true,

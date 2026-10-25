@@ -112,6 +112,9 @@ class MetaDetailsViewModel @Inject constructor(
     private val isServerItem = ServerItemRef.isServerId(itemId)
     private val itemType: String = savedStateHandle["itemType"] ?: ""
     private val preferredAddonBaseUrl: String? = savedStateHandle["addonBaseUrl"]
+    // Vibe fork: opened to play right away (e.g. the launcher's voice "play ..."), so no idle trailer.
+    private val openedWithPlayOnLoad: Boolean =
+        savedStateHandle.get<String>("playOnLoad")?.toBooleanStrictOrNull() == true
 
     private val _uiState = MutableStateFlow(MetaDetailsUiState())
     private val shuffleVisit = System.nanoTime()
@@ -2915,6 +2918,7 @@ class MetaDetailsViewModel @Inject constructor(
         val state = _uiState.value
         if (state.trailerUrl == null || state.isTrailerPlaying || state.isBackgroundTrailerPlaying) return
         if (!trailerAutoplayEnabled) return
+        if (openedWithPlayOnLoad) return
         if (trailerHasPlayed) return
         if (!isPlayButtonFocused) return
 

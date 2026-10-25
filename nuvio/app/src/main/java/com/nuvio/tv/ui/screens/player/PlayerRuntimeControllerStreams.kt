@@ -30,6 +30,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /** Hard ceiling for next-episode stream search to prevent hanging forever. */
 private const val NEXT_EPISODE_HARD_TIMEOUT_MS = 120_000L
+private const val NEXT_EPISODE_AUTOPLAY_COUNTDOWN_SECONDS = 10
 private const val CLOUD_LIBRARY_AUTO_NEXT_TIMEOUT_MS = 65_000L
 
 /**
@@ -2111,7 +2112,8 @@ internal fun PlayerRuntimeController.playNextEpisode(userInitiated: Boolean = fa
             }
             if (streamToPlay != null) {
                 val sourceName = (streamToPlay.name?.takeIf { it.isNotBlank() } ?: streamToPlay.addonName).trim()
-                for (remaining in 3 downTo 1) {
+                // Vibe fork: 10 s "playing next" countdown (was 3 s), enough time to cancel.
+                for (remaining in NEXT_EPISODE_AUTOPLAY_COUNTDOWN_SECONDS downTo 1) {
                     _uiState.update { current ->
                         val episodeForMode = current.nextEpisode ?: nextInfo
                         current.copy(

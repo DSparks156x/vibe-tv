@@ -147,6 +147,7 @@ fun GridContentCard(
                         Modifier
                     }
                 )
+                .nuvioFocusScale(isFocused, posterCardStyle.focusedScale)
                 .onFocusChanged { state ->
                     isFocused = state.isFocused
                     if (state.isFocused) onFocused()
@@ -191,7 +192,7 @@ fun GridContentCard(
                     shape = cardShape
                 )
             ),
-            scale = CardDefaults.scale(focusedScale = posterCardStyle.focusedScale)
+            scale = CardDefaults.scale(focusedScale = 1f)
         ) {
             Box(
                 modifier = Modifier

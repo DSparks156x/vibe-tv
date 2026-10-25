@@ -24,7 +24,7 @@ data class NuvioExtendedColors(
 )
 
 val LocalNuvioColors = staticCompositionLocalOf {
-    NuvioColorScheme(ThemeColors.Ocean)
+    NuvioColorScheme(ThemeColors.Vibe)
 }
 
 val LocalNuvioExtendedColors = staticCompositionLocalOf {
@@ -33,29 +33,29 @@ val LocalNuvioExtendedColors = staticCompositionLocalOf {
         backgroundCard = Color(0xFF242424),
         textSecondary = Color(0xFFB3B3B3),
         textTertiary = Color(0xFF808080),
-        focusRing = ThemeColors.Ocean.focusRing,
-        focusBackground = ThemeColors.Ocean.focusBackground,
+        focusRing = ThemeColors.Vibe.focusRing,
+        focusBackground = ThemeColors.Vibe.focusBackground,
         rating = Color(0xFFFFD700)
     )
 }
 
 val LocalNuvioTextStyles = staticCompositionLocalOf { NuvioTextStyles }
 
-val LocalAppTheme = staticCompositionLocalOf { AppTheme.WHITE }
+val LocalAppTheme = staticCompositionLocalOf { AppTheme.VIBE }
 
-val LocalThemePalette = staticCompositionLocalOf { ThemeColors.White }
+val LocalThemePalette = staticCompositionLocalOf { ThemeColors.Vibe }
 
 val LocalSettingsUiStyle = staticCompositionLocalOf { SettingsUiStyle.CLASSIC }
 
 val LocalNuvioFocusRingStyle = staticCompositionLocalOf {
-    createFocusRingStyle(ThemeColors.Ocean)
+    createFocusRingStyle(ThemeColors.Vibe)
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun NuvioTheme(
-    appTheme: AppTheme = AppTheme.WHITE,
-    appFont: AppFont = AppFont.INTER,
+    appTheme: AppTheme = AppTheme.VIBE,
+    appFont: AppFont = AppFont.GOOGLE_SANS,
     amoledMode: Boolean = false,
     amoledSurfacesMode: Boolean = false,
     settingsUiStyle: SettingsUiStyle = SettingsUiStyle.CLASSIC,

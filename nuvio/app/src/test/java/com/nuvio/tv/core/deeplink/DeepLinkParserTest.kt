@@ -67,6 +67,29 @@ class DeepLinkParserTest {
     }
 
     @Test
+    fun parsesPlayOnLoadDeepLink() {
+        assertEquals(
+            AppDeepLink.Meta(type = "movie", id = "tt15239678", playOnLoad = true),
+            DeepLinkParser.parse("nuvio://detail/movie/tt15239678?playOnLoad=1")
+        )
+        assertEquals(
+            AppDeepLink.Meta(type = "series", id = "tt0944947", playOnLoad = true, season = 2, episode = 3),
+            DeepLinkParser.parse("nuvio://detail/series/tt0944947?playOnLoad=true&season=2&episode=3")
+        )
+        // A season without an episode is ignored (next unwatched episode is used instead).
+        assertEquals(
+            AppDeepLink.Meta(type = "series", id = "tt0944947", playOnLoad = true),
+            DeepLinkParser.parse("nuvio://detail/series/tt0944947?playOnLoad=1&season=2")
+        )
+    }
+
+    @Test
+    fun parsesSearchDeepLink() {
+        assertEquals(AppDeepLink.Search("the bear"), DeepLinkParser.parse("nuvio://search?q=the%20bear"))
+        assertEquals(AppDeepLink.Search(null), DeepLinkParser.parse("nuvio://search"))
+    }
+
+    @Test
     fun doesNotTreatNonHostStremioLinkAsAddonInstall() {
         assertNull(DeepLinkParser.parse("stremio://detail/series/tt0944947"))
     }

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="splash_background">#0D0D0D</color>
+    <!-- Vibe fork: matches the navy plate of the launcher icon artwork. -->
+    <color name="ic_launcher_background">#0D101E</color>
 </resources>

@@ -473,6 +473,13 @@ fun MetaDetailsScreen(
     var restoreSharedTrailerFocusToken by rememberSaveable { mutableIntStateOf(0) }
     var isTrailerPaused by remember { mutableStateOf(false) }
     val playOnLoadConsumed = rememberSaveable { mutableStateOf(false) }
+    // Vibe fork: a deep link may name the episode to play; returnFocus* is cleared once consumed.
+    val playOnLoadSeason = rememberSaveable {
+        mutableStateOf(returnFocusSeason?.takeIf { playOnLoad && returnFocusEpisode != null })
+    }.value
+    val playOnLoadEpisode = rememberSaveable {
+        mutableStateOf(returnFocusEpisode?.takeIf { playOnLoadSeason != null })
+    }.value
     val playOnLoadHandoffDispatched = rememberSaveable { mutableStateOf(false) }
     val playOnLoadReturnObserved = rememberSaveable { mutableStateOf(false) }
     val suppressInitialPlayOnLoadContent = playOnLoad && !playOnLoadReturnObserved.value
@@ -789,8 +796,15 @@ fun MetaDetailsScreen(
                 val isSeries = remember(meta.type, meta.videos) {
                     meta.type == ContentType.SERIES || meta.videos.isNotEmpty()
                 }
-                val playOnLoadVideo = remember(meta, uiState.nextToWatch, uiState.episodesForSeason) {
-                    resolveHeroPlaybackVideo(
+                val explicitPlayOnLoadVideo = remember(meta, playOnLoadSeason, playOnLoadEpisode) {
+                    if (playOnLoadSeason == null || playOnLoadEpisode == null) {
+                        null
+                    } else {
+                        meta.videos.firstOrNull { it.season == playOnLoadSeason && it.episode == playOnLoadEpisode }
+                    }
+                }
+                val playOnLoadVideo = remember(meta, uiState.nextToWatch, uiState.episodesForSeason, explicitPlayOnLoadVideo) {
+                    explicitPlayOnLoadVideo ?: resolveHeroPlaybackVideo(
                         meta = meta,
                         nextToWatch = uiState.nextToWatch,
                         episodesForSeason = uiState.episodesForSeason
@@ -806,7 +820,9 @@ fun MetaDetailsScreen(
                     playOnLoadVideo?.id,
                     playbackAvailability
                 ) {
-                    if (!playOnLoad || playOnLoadConsumed.value || (isSeries && uiState.nextToWatch == null)) {
+                    if (!playOnLoad || playOnLoadConsumed.value ||
+                        (isSeries && explicitPlayOnLoadVideo == null && uiState.nextToWatch == null)
+                    ) {
                         return@LaunchedEffect
                     }
                     if (!playbackAvailability.isLoaded) return@LaunchedEffect

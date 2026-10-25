@@ -661,12 +661,13 @@ fun ContinueWatchingCard(
             },
         shape = cwCardShape,
         containerColor = Color.Transparent,
+        focusedScale = NuvioTheme.components.continueWatchingCard.focusedScale,
         // With text under the artwork the card border would ring the text too, so the artwork draws its own.
         focusedBorder = if (textBelowArtwork) {
             Border.None
         } else {
             Border(
-                border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
+                border = NuvioTheme.focusRing.border(NuvioTheme.components.continueWatchingCard.focusedBorderWidth),
                 shape = cwCardShape
             )
         }
@@ -734,7 +735,7 @@ fun ContinueWatchingCard(
                     .then(
                         if (textBelowArtwork && isFocused) {
                             Modifier.border(
-                                border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
+                                border = NuvioTheme.focusRing.border(NuvioTheme.components.continueWatchingCard.focusedBorderWidth),
                                 shape = cwClipShape
                             )
                         } else {

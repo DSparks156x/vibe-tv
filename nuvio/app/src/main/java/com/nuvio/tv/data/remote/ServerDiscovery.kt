@@ -108,7 +108,8 @@ internal object ServerDiscoveryPolicy {
             isCustom = true,
             discoveryUrl = discoveryUrl,
             tvLoginWebBaseUrl = "$backendUrl/tv-login",
-            deviceLoginWebBaseUrl = "$backendUrl/link",
+            // Self-host dashboards serve /tv-login only, so custom servers use that QR flow.
+            deviceLoginWebBaseUrl = null,
             avatarPublicBaseUrl = "$backendUrl/storage/v1/object/public/avatars"
         )
     }

@@ -10,6 +10,11 @@
         </intent>
     </queries>
 
+    <!-- Vibe fork: lets the Vibe TV launcher (same signing key) read Continue Watching etc. -->
+    <permission
+        android:name="com.vibe.permission.LAUNCHER_DATA"
+        android:protectionLevel="signature" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA" />
     <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" />
@@ -50,6 +55,12 @@
         <meta-data
             android:name="io.sentry.tombstone.enable"
             android:value="true" />
+
+        <provider
+            android:name=".core.vibe.VibeLauncherProvider"
+            android:authorities="${applicationId}.launcher"
+            android:exported="true"
+            android:readPermission="com.vibe.permission.LAUNCHER_DATA" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

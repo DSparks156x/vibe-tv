@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.navigation.NavHostController
@@ -1165,6 +1166,13 @@ private fun PlaybackNavHost(
         composable(Screen.Search.route) { backStackEntry ->
             val searchViewModel: com.nuvio.tv.ui.screens.search.SearchViewModel =
                 androidx.hilt.navigation.compose.hiltViewModel(backStackEntry)
+            val deepLinkQuery by com.nuvio.tv.ui.screens.search.SearchDeepLinkQuery.pending.collectAsState()
+            LaunchedEffect(deepLinkQuery) {
+                val query = deepLinkQuery ?: return@LaunchedEffect
+                com.nuvio.tv.ui.screens.search.SearchDeepLinkQuery.pending.value = null
+                searchViewModel.onEvent(com.nuvio.tv.ui.screens.search.SearchEvent.QueryChanged(query))
+                searchViewModel.onEvent(com.nuvio.tv.ui.screens.search.SearchEvent.SubmitSearch)
+            }
             SearchScreen(
                 viewModel = searchViewModel,
                 onNavigateToDetail = { itemId, itemType, addonBaseUrl ->

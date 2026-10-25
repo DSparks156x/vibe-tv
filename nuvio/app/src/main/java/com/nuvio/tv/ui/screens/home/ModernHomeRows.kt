@@ -1271,7 +1271,7 @@ private fun ModernCarouselCard(
     var longPressTriggered by remember { mutableStateOf(false) }
     val longPressKeyTracker = rememberLongPressKeyTracker()
     val backgroundCardColor = NuvioTheme.colors.BackgroundCard
-    val focusRingBorder = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs)
+    val focusRingBorder = NuvioTheme.focusRing.border(NuvioTheme.components.posterCard.focusedBorderWidth)
     val titleMedium = MaterialTheme.typography.titleMedium
     val backgroundPainter = remember(backgroundCardColor) { ColorPainter(backgroundCardColor) }
     val focusedBorder = remember(cardShape, focusRingBorder) {
@@ -1367,7 +1367,8 @@ private fun ModernCarouselCard(
             shape = cardShape,
             containerColor = backgroundCardColor,
             focusedBorder = effectiveFocusedBorder,
-            focusedGlow = effectiveFocusGlow
+            focusedGlow = effectiveFocusGlow,
+            focusedScale = if (isFastScrolling) 1f else NuvioTheme.components.posterCard.focusedScale
         ) {
             Box(
                 modifier = Modifier

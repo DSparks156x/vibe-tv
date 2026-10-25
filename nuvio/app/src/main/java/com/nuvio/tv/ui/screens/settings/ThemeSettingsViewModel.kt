@@ -27,11 +27,11 @@ import javax.inject.Inject
 
 data class ThemeSettingsUiState(
     val themesLoaded: Boolean = false,
-    val selectedTheme: AppTheme = AppTheme.WHITE,
+    val selectedTheme: AppTheme = AppTheme.VIBE,
     val customThemeColors: CustomThemeColors = CustomThemeColors.solid(CustomThemeColors.Default.second),
     val customThemeGradientEnabled: Boolean = false,
     val availableThemes: List<AppTheme> = availableAppThemes(CosmeticEntitlements.None),
-    val selectedFont: AppFont = AppFont.INTER,
+    val selectedFont: AppFont = AppFont.GOOGLE_SANS,
     val availableFonts: List<AppFont> = AppFont.entries.toList(),
     val amoledMode: Boolean = false,
     val amoledSurfacesMode: Boolean = false,
@@ -89,7 +89,7 @@ class ThemeSettingsViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(
                             themesLoaded = true,
-                            selectedTheme = selection.theme ?: AppTheme.WHITE,
+                            selectedTheme = selection.theme ?: AppTheme.VIBE,
                             customThemeColors = selection.customColors,
                             customThemeGradientEnabled = gradientEnabled,
                             availableThemes = availableThemes

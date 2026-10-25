@@ -1002,7 +1002,8 @@ class PlayerSettingsDataStore @Inject constructor(
                     PlayerSettings.MIN_POST_PLAY_MOVIE_THRESHOLD_PERCENT,
                     PlayerSettings.MAX_POST_PLAY_MOVIE_THRESHOLD_PERCENT
                 ),
-                streamAutoPlayNextEpisodeEnabled = prefs[streamAutoPlayNextEpisodeEnabledKey] ?: false,
+                // Vibe fork: binge-friendly default, next episode plays after the countdown.
+                streamAutoPlayNextEpisodeEnabled = prefs[streamAutoPlayNextEpisodeEnabledKey] ?: true,
                 streamAutoPlayNextEpisodeFallbackEnabled = prefs[streamAutoPlayNextEpisodeFallbackEnabledKey] ?: true,
                 streamAutoPlayPreferBingeGroupForNextEpisode =
                     prefs[streamAutoPlayPreferBingeGroupForNextEpisodeKey] ?: true,
@@ -1082,7 +1083,9 @@ class PlayerSettingsDataStore @Inject constructor(
                         secondaryPreferredLanguage = prefs[subtitleSecondaryLanguageKey]
                             ?.let(::normalizeSelectableLanguageCode)
                             ?.takeUnless { it == SUBTITLE_LANGUAGE_FORCED },
-                        useForcedSubtitles = (prefs[subtitleUseForcedSubtitlesKey] ?: false) ||
+                        // Vibe fork: when the audio already matches the subtitle language, show only
+                        // forced ("foreign parts") subtitles, which in practice means subtitles off.
+                        useForcedSubtitles = (prefs[subtitleUseForcedSubtitlesKey] ?: true) ||
                             prefs[subtitlePreferredLanguageKey]?.let(::normalizeSelectableLanguageCode) == SUBTITLE_LANGUAGE_FORCED ||
                             prefs[subtitleSecondaryLanguageKey]?.let(::normalizeSelectableLanguageCode) == SUBTITLE_LANGUAGE_FORCED,
                         showOnlyPreferredLanguages = prefs[subtitleShowOnlyPreferredLanguagesKey] ?: false,

@@ -559,6 +559,11 @@ class AuthManager @Inject constructor(
     ): Result<DeviceLoginStartResult> {
         val startedAtMs = SystemClock.elapsedRealtime()
         val trace = qrTrace(traceId)
+        if (redirectBaseUrl.isBlank()) {
+            // No device-login (/link) page on this server: use the /tv-login flow directly.
+            Log.d(TAG, "$trace startDeviceLoginSession skipped (no device-login page); using TV login")
+            return startLegacyTvLogin(deviceNonce, deviceName, legacyRedirectBaseUrl, traceId, diagnostics)
+        }
         return try {
             val params = buildJsonObject {
                 put("p_device_nonce", deviceNonce)
@@ -589,24 +594,32 @@ class AuthManager @Inject constructor(
             }
 
             Log.w(TAG, "$trace startDeviceLoginSession unavailable; falling back to legacy TV login")
-            startTvLoginSession(
-                deviceNonce = deviceNonce,
-                deviceName = deviceName,
-                redirectBaseUrl = legacyRedirectBaseUrl,
-                traceId = traceId,
-                diagnostics = diagnostics
-            ).map { legacy ->
-                DeviceLoginStartResult(
-                    deviceCode = legacy.code,
-                    userCode = legacy.code,
-                    verificationUri = legacyRedirectBaseUrl,
-                    verificationUriComplete = legacy.webUrl,
-                    expiresAt = legacy.expiresAt,
-                    pollIntervalSeconds = legacy.pollIntervalSeconds,
-                    legacy = true
-                )
-            }
+            startLegacyTvLogin(deviceNonce, deviceName, legacyRedirectBaseUrl, traceId, diagnostics)
         }
+    }
+
+    private suspend fun startLegacyTvLogin(
+        deviceNonce: String,
+        deviceName: String?,
+        legacyRedirectBaseUrl: String,
+        traceId: Long?,
+        diagnostics: AuthDiagnosticsSession?
+    ): Result<DeviceLoginStartResult> = startTvLoginSession(
+        deviceNonce = deviceNonce,
+        deviceName = deviceName,
+        redirectBaseUrl = legacyRedirectBaseUrl,
+        traceId = traceId,
+        diagnostics = diagnostics
+    ).map { legacy ->
+        DeviceLoginStartResult(
+            deviceCode = legacy.code,
+            userCode = legacy.code,
+            verificationUri = legacyRedirectBaseUrl,
+            verificationUriComplete = legacy.webUrl,
+            expiresAt = legacy.expiresAt,
+            pollIntervalSeconds = legacy.pollIntervalSeconds,
+            legacy = true
+        )
     }
 
     suspend fun startTvLoginSession(

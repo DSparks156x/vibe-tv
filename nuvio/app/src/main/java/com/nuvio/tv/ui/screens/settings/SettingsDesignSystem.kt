@@ -370,6 +370,13 @@ internal fun SettingsRailButton(
         modifier
     }
     val showSelected = isSelected && !suppressSelectedVisual
+    // Vibe fork: Google TV style rail. Focused = solid accent pill with dark text, selected = muted pill.
+    val focusedPill = isFocused && !zen
+    val railContentColor = when {
+        focusedPill -> NuvioTheme.colors.OnSecondary
+        isSelected || isFocused -> NuvioTheme.colors.TextPrimary
+        else -> NuvioTheme.colors.TextSecondary
+    }
 
     Card(
         onClick = onClick,
@@ -387,25 +394,12 @@ internal fun SettingsRailButton(
         colors = CardDefaults.colors(
             containerColor = when {
                 zen -> Color.Transparent
-                showSelected -> NuvioTheme.colors.BackgroundCard
+                showSelected -> NuvioTheme.colors.FocusBackground
                 else -> NuvioTheme.colors.Background
             },
-            focusedContainerColor = if (zen) settingsFocusFillColor() else NuvioTheme.colors.BackgroundCard
+            focusedContainerColor = if (zen) settingsFocusFillColor() else NuvioTheme.colors.Secondary
         ),
-        border = if (zen) {
-            CardDefaults.border(border = Border.None, focusedBorder = Border.None)
-        } else {
-            CardDefaults.border(
-                border = if (showSelected) Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.hairline),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                ) else Border.None,
-                focusedBorder = Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                )
-            )
-        },
+        border = CardDefaults.border(border = Border.None, focusedBorder = Border.None),
         shape = CardDefaults.shape(railShape),
         scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
     ) {
@@ -449,15 +443,13 @@ internal fun SettingsRailButton(
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                             contentScale = ContentScale.Fit,
-                            colorFilter = ColorFilter.tint(
-                                if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary
-                            )
+                            colorFilter = ColorFilter.tint(railContentColor)
                         )
                     } else if (icon != null) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
+                            tint = railContentColor,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -472,7 +464,7 @@ internal fun SettingsRailButton(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium
                         ),
-                        color = if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
+                        color = railContentColor,
                     )
                 }
 
@@ -480,7 +472,7 @@ internal fun SettingsRailButton(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
-                        tint = NuvioTheme.colors.TextTertiary,
+                        tint = if (focusedPill) NuvioTheme.colors.OnSecondary else NuvioTheme.colors.TextTertiary,
                         modifier = Modifier.size(18.dp)
                     )
                 }

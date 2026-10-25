@@ -311,6 +311,7 @@ fun ContentCard(
             },
             modifier = Modifier
                 .fillMaxWidth()
+                .nuvioFocusScale(isFocused, posterCardStyle.focusedScale)
                 .onFocusChanged { state ->
                     val focusedNow = state.isFocused
                     if (needsFocusState) {
@@ -386,7 +387,7 @@ fun ContentCard(
                     shape = cardShape
                 )
             ),
-            scale = CardDefaults.scale(focusedScale = posterCardStyle.focusedScale)
+            scale = CardDefaults.scale(focusedScale = 1f)
         ) {
             Box(
                 modifier = Modifier

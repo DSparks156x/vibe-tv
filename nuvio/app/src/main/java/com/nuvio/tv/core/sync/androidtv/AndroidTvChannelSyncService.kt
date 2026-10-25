@@ -5,6 +5,7 @@ import android.util.Log
 import com.nuvio.tv.core.poster.CustomPosterScreen
 import com.nuvio.tv.core.poster.patternForScreen
 import com.nuvio.tv.core.poster.withCustomPosterArt
+import com.nuvio.tv.domain.repository.WatchProgressRepository
 import com.nuvio.tv.core.recommendations.TvRecommendationManager
 import com.nuvio.tv.data.local.CachedInProgressItem
 import com.nuvio.tv.data.local.CachedNextUpItem
@@ -48,7 +49,8 @@ class AndroidTvChannelSyncService @Inject constructor(
     private val cwEnrichmentCache: ContinueWatchingEnrichmentCache,
     private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
     private val traktSettingsDataStore: TraktSettingsDataStore,
-    private val tvRecommendationManager: TvRecommendationManager
+    private val tvRecommendationManager: TvRecommendationManager,
+    private val watchProgressRepository: WatchProgressRepository
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -107,6 +109,28 @@ class AndroidTvChannelSyncService @Inject constructor(
      * Called both from the live observer and from [TvChannelRefreshJobService].
      */
     suspend fun reconcileFromCache(settings: ChannelSettingsSnapshot? = null) {
+        val channelItems = launcherEntries(settings).map { it.progress }
+        Log.d(
+            TAG,
+            "Reconciling from cache: ${channelItems.size} items " +
+                "(in-progress + next-up after filtering)"
+        )
+        manager.reconcile(channelItems)
+
+        runCatching {
+            tvRecommendationManager.updateWatchNext(channelItems)
+        }
+    }
+
+    /**
+     * The Continue Watching list exactly as the launcher channel shows it (settings-aware,
+     * deduplicated, unaired next-ups removed). Also served to the Vibe launcher.
+     */
+    suspend fun launcherItems(settings: ChannelSettingsSnapshot? = null): List<WatchProgress> =
+        launcherEntries(settings).map { it.progress }
+
+    /** [launcherItems] plus where each row came from (Vibe launcher provider). */
+    suspend fun launcherEntries(settings: ChannelSettingsSnapshot? = null): List<LauncherCwEntry> {
         val resolvedSettings = settings ?: run {
             val daysCap = traktSettingsDataStore.continueWatchingDaysCap.first()
             val dismissed = traktSettingsDataStore.dismissedNextUpKeys.first()
@@ -124,18 +148,26 @@ class AndroidTvChannelSyncService @Inject constructor(
             CustomPosterScreen.TV_RECOMMENDATIONS,
             layoutPreferenceDataStore.customPosterEnabledScreens.first()
         )
-        val channelItems = buildChannelItems(inProgressItems, nextUpItems, resolvedSettings)
-            .withCustomPosterArt(posterPattern)
+        val live = runCatching { watchProgressRepository.allProgress.first() }.getOrNull()
+        return buildChannelItems(inProgressItems, nextUpItems, resolvedSettings)
+            .filter { live == null || it.isStillPending(live) }
+            .map { it.copy(progress = it.progress.withCustomPosterArt(posterPattern)) }
+    }
 
-        Log.d(
-            TAG,
-            "Reconciling from cache: ${channelItems.size} items " +
-                "(${inProgressItems.size} in-progress, ${nextUpItems.size} next-up raw)"
-        )
-        manager.reconcile(channelItems)
-
-        runCatching {
-            tvRecommendationManager.updateWatchNext(channelItems)
+    /**
+     * The enrichment cache is only rebuilt while Nuvio's home is open, so rows can be stale after
+     * progress changes made elsewhere (the Vibe launcher's "Mark watched" / "Remove", playback that
+     * ended without visiting home). Drop rows the live progress says are finished or removed.
+     */
+    private fun LauncherCwEntry.isStillPending(live: List<WatchProgress>): Boolean {
+        val p = progress
+        val sameTitle = live.filter { it.contentId == p.contentId }
+        val sameEpisode = sameTitle.firstOrNull { it.season == p.season && it.episode == p.episode }
+        return when (kind) {
+            // In progress: must still have saved progress that isn't completed.
+            LauncherCwEntry.KIND_IN_PROGRESS -> sameEpisode != null && !sameEpisode.isCompleted()
+            // Next up: gone once that episode itself is watched.
+            else -> sameEpisode?.isCompleted() != true
         }
     }
 
@@ -152,7 +184,7 @@ class AndroidTvChannelSyncService @Inject constructor(
         inProgress: List<CachedInProgressItem>,
         nextUp: List<CachedNextUpItem>,
         settings: ChannelSettingsSnapshot
-    ): List<WatchProgress> {
+    ): List<LauncherCwEntry> {
         val cutoffMs = if (settings.daysCap == TraktSettingsDataStore.CONTINUE_WATCHING_DAYS_CAP_ALL) {
             null
         } else {
@@ -178,20 +210,35 @@ class AndroidTvChannelSyncService @Inject constructor(
         // Sort: in-progress by lastWatched, next-up by sortTimestamp (which is
         // releaseTimestamp for release alerts, lastWatched for regular next-up).
         // This mirrors the in-app CW order for aired content in both sort modes.
-        data class SortableItem(val watchProgress: WatchProgress, val sortKey: Long)
+        data class SortableItem(val entry: LauncherCwEntry, val sortKey: Long)
 
         val inProgressSorted = filteredInProgress.map { item ->
-            SortableItem(item.toWatchProgress(settings.useEpisodeThumbnails), item.lastWatched)
+            SortableItem(
+                LauncherCwEntry(
+                    progress = item.toWatchProgress(settings.useEpisodeThumbnails),
+                    kind = LauncherCwEntry.KIND_IN_PROGRESS,
+                    thumbnail = item.episodeThumbnail
+                ),
+                item.lastWatched
+            )
         }
 
         val nextUpSorted = deduplicatedNextUp.map { item ->
-            SortableItem(item.toWatchProgress(settings.useEpisodeThumbnails), item.sortTimestamp)
+            SortableItem(
+                LauncherCwEntry(
+                    progress = item.toWatchProgress(settings.useEpisodeThumbnails),
+                    kind = LauncherCwEntry.KIND_NEXT_UP,
+                    thumbnail = item.thumbnail,
+                    dismissKey = nextUpDismissKey(item)
+                ),
+                item.sortTimestamp
+            )
         }
 
         return (inProgressSorted + nextUpSorted)
             .sortedByDescending { it.sortKey }
-            .map { it.watchProgress }
-            .distinctBy { it.contentId }
+            .map { it.entry }
+            .distinctBy { it.progress.contentId }
     }
 
     private fun nextUpDismissKey(item: CachedNextUpItem): String {
@@ -201,6 +248,20 @@ class AndroidTvChannelSyncService @Inject constructor(
                 append("_s${item.seedSeason}")
                 if (item.seedEpisode != null) append("e${item.seedEpisode}")
             }
+        }
+    }
+
+    /** A Continue Watching row as served to the Vibe launcher. */
+    data class LauncherCwEntry(
+        val progress: WatchProgress,
+        val kind: String,
+        val thumbnail: String?,
+        /** Key for [TraktSettingsDataStore.addDismissedNextUpKey]; set for next-up rows only. */
+        val dismissKey: String? = null
+    ) {
+        companion object {
+            const val KIND_IN_PROGRESS = "in_progress"
+            const val KIND_NEXT_UP = "next_up"
         }
     }
 

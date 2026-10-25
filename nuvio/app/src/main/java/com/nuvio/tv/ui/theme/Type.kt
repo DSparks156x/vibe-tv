@@ -11,6 +11,13 @@ import androidx.tv.material3.Typography
 import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.AppFont
 
+val GoogleSansFamily = FontFamily(
+    Font(R.font.google_sans_regular, FontWeight.Normal),
+    Font(R.font.google_sans_medium, FontWeight.Medium),
+    Font(R.font.google_sans_medium, FontWeight.SemiBold),
+    Font(R.font.google_sans_bold, FontWeight.Bold)
+)
+
 val DMSansFamily = FontFamily(
     Font(R.font.dm_sans_variable, FontWeight.Normal),
     Font(R.font.dm_sans_variable, FontWeight.Medium),
@@ -33,6 +40,7 @@ val OpenSansFamily = FontFamily(
 )
 
 fun getFontFamily(appFont: AppFont): FontFamily = when (appFont) {
+    AppFont.GOOGLE_SANS -> GoogleSansFamily
     AppFont.INTER -> InterFamily
     AppFont.DM_SANS -> DMSansFamily
     AppFont.OPEN_SANS -> OpenSansFamily
@@ -151,7 +159,7 @@ fun buildNuvioTypography(fontFamily: FontFamily): Typography = Typography(
 )
 
 @OptIn(ExperimentalTvMaterial3Api::class)
-val NuvioTypography = buildNuvioTypography(InterFamily)
+val NuvioTypography = buildNuvioTypography(GoogleSansFamily)
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 fun buildNuvioTextStyles(typography: Typography): NuvioTextStyleTokens = NuvioTextStyleTokens(

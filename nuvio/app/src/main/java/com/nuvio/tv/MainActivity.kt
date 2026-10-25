@@ -173,6 +173,7 @@ import com.nuvio.tv.domain.model.SettingsUiStyle
 import com.nuvio.tv.domain.model.resolveAppTheme
 import com.nuvio.tv.domain.model.resolveCustomThemeColors
 import com.nuvio.tv.domain.deeplink.AppDeepLink
+import com.nuvio.tv.ui.screens.search.SearchDeepLinkQuery
 import com.nuvio.tv.domain.repository.AddonRepository
 import com.nuvio.tv.ui.components.NuvioScrollDefaults
 import com.nuvio.tv.ui.components.BrandWordmark
@@ -242,10 +243,10 @@ data class DrawerItem(
 )
 
 private data class MainUiPrefs(
-    val theme: AppTheme = AppTheme.WHITE,
+    val theme: AppTheme = AppTheme.VIBE,
     val customThemeColors: CustomThemeColors = CustomThemeColors.Default,
     val memberAccess: MemberAccess = MemberAccess.None,
-    val font: AppFont = AppFont.INTER,
+    val font: AppFont = AppFont.GOOGLE_SANS,
     val amoledMode: Boolean = false,
     val amoledSurfacesMode: Boolean = false,
     val hasChosenLayout: Boolean? = null,
@@ -329,6 +330,9 @@ open class MainActivity : ComponentActivity() {
     lateinit var partyRepository: PartyRepository
 
     private val pendingDeepLinkUrl = MutableStateFlow<String?>(null)
+
+    /** Vibe fork: started by the Vibe launcher (title/search deep link or Continue Watching resume). */
+    private var launchedExternally = false
     private val pendingLaunchIntent = MutableStateFlow<Intent?>(null)
 
     private lateinit var jankStats: JankStats
@@ -392,6 +396,7 @@ open class MainActivity : ComponentActivity() {
         val launchEpisode = intent?.getIntExtra("episode", -1)?.takeIf { it >= 0 }
         val launchEpisodeTitle = intent?.getStringExtra("episodeTitle")
         captureDeepLinkIntent(intent)
+        launchedExternally = isLauncherEntryIntent(intent)
 
         setContent {
             var hasSelectedProfileThisSession by rememberSaveable { mutableStateOf(false) }
@@ -461,7 +466,8 @@ open class MainActivity : ComponentActivity() {
             }
 
             var profileSwitchedManually by remember { mutableStateOf(false) }
-            val shouldAutoSelectProfile = rememberLastProfileEnabled &&
+            // Vibe fork: a launcher deep link goes straight to the title with the last used profile.
+            val shouldAutoSelectProfile = (rememberLastProfileEnabled || launchedExternally) &&
                 hasEverSelectedProfile && !activeProfileHasPin &&
                 !hasSelectedProfileThisSession && !profileSwitchedManually
             if (shouldAutoSelectProfile && !splashTriggered) {
@@ -525,7 +531,7 @@ open class MainActivity : ComponentActivity() {
                     experienceModeDataStore.mode,
                 ) { themeAndAccess, font, amoledMode, amoledSurfacesMode, experienceMode ->
                     MainUiPrefs(
-                        theme = themeAndAccess.first.theme ?: AppTheme.WHITE,
+                        theme = themeAndAccess.first.theme ?: AppTheme.VIBE,
                         customThemeColors = themeAndAccess.first.customColors,
                         memberAccess = themeAndAccess.second,
                         font = font,
@@ -668,7 +674,7 @@ open class MainActivity : ComponentActivity() {
                             .apply()
                     }
                     val activeTheme = mainUiPrefs.theme
-                    if (splashPreferencesReady && activeTheme != AppTheme.WHITE) {
+                    if (splashPreferencesReady && activeTheme != AppTheme.VIBE) {
                         splashPrefs.edit().putString("theme_$activeProfileId", activeTheme.name).apply()
                     } else if (splashPreferencesReady) {
                         splashPrefs.edit().remove("theme_$activeProfileId").apply()
@@ -687,7 +693,7 @@ open class MainActivity : ComponentActivity() {
                         ?: activeTheme.takeIf { splashPreferencesReady }
                         ?: splashPrefs.getString("theme_$activeProfileId", null)
                             ?.let { name -> AppTheme.entries.firstOrNull { it.name == name } }
-                        ?: AppTheme.WHITE
+                        ?: AppTheme.VIBE
                     SplashBackground(
                         profileColorHex = if (hasFocusedOverride) focusedSplashColor else (colorHex ?: fallbackColor),
                         backgroundUrl = resolvedBgUrl,
@@ -868,6 +874,7 @@ open class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     val navViewModelStoreOwner = rememberNavSessionViewModelStoreOwner(navController)
                     var optimisticRoute by remember { mutableStateOf<String?>(null) }
+                    var externalParentId by remember { mutableStateOf<String?>(null) }
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val actualRoute = navBackStackEntry?.destination?.route
                     val currentRoute = optimisticRoute ?: actualRoute
@@ -876,6 +883,18 @@ open class MainActivity : ComponentActivity() {
                     LaunchedEffect(actualRoute) {
                         optimisticRoute = null
                         ambientIdleController.onInteraction()
+                    }
+
+                    // Vibe fork: once Back pops the screen the launcher opened, hand control back to the
+                    // launcher instead of landing on Nuvio's home. The task stays alive, so the next
+                    // deep link opens instantly.
+                    LaunchedEffect(navBackStackEntry) {
+                        val parentId = externalParentId ?: return@LaunchedEffect
+                        val entry = navBackStackEntry ?: return@LaunchedEffect
+                        if (entry.id == parentId || entry.destination.route == Screen.Home.route) {
+                            externalParentId = null
+                            moveTaskToBack(true)
+                        }
                     }
 
                     // Auto-play next episode for EXTERNAL players: the tracker resolves the
@@ -947,6 +966,7 @@ open class MainActivity : ComponentActivity() {
                                     )
                                 )
                             }
+                            externalParentId = navController.previousBackStackEntry?.id
                         }
                     }
 
@@ -985,6 +1005,7 @@ open class MainActivity : ComponentActivity() {
                                 )
                             )
                         }
+                        externalParentId = navController.previousBackStackEntry?.id
                     }
 
                     LaunchedEffect(navController, layoutChosen, pendingDeepLink) {
@@ -993,14 +1014,29 @@ open class MainActivity : ComponentActivity() {
                         when (val deepLink = DeepLinkParser.parse(url)) {
                             is AppDeepLink.Meta -> {
                                 pendingDeepLinkUrl.value = null
+                                val playOnLoad = deepLink.playOnLoad ||
+                                    intent?.getBooleanExtra("playOnLoad", false) == true
                                 navController.navigate(
                                     Screen.Detail.createRoute(
                                         itemId = deepLink.id,
-                                        itemType = deepLink.type
+                                        itemType = deepLink.type,
+                                        // The detail screen plays this episode when playOnLoad is set.
+                                        returnFocusSeason = deepLink.season,
+                                        returnFocusEpisode = deepLink.episode,
+                                        playOnLoad = playOnLoad
                                     )
                                 ) {
                                     launchSingleTop = true
                                 }
+                                externalParentId = navController.previousBackStackEntry?.id
+                            }
+                            is AppDeepLink.Search -> {
+                                pendingDeepLinkUrl.value = null
+                                SearchDeepLinkQuery.pending.value = deepLink.query
+                                navController.navigate(Screen.Search.route) {
+                                    launchSingleTop = true
+                                }
+                                externalParentId = navController.previousBackStackEntry?.id
                             }
                             is AppDeepLink.Party -> {
                                 pendingDeepLinkUrl.value = null
@@ -1244,7 +1280,7 @@ open class MainActivity : ComponentActivity() {
                         }
                     }
                     val showSplash = shouldShowStartupSplash(
-                        enabled = startupSplashEnabled,
+                        enabled = startupSplashEnabled && !launchedExternally,
                         complete = startupLoadingState.complete,
                         destination = startupDestination
                     )
@@ -1313,6 +1349,14 @@ open class MainActivity : ComponentActivity() {
         setIntent(intent)
         captureDeepLinkIntent(intent)
         captureLaunchIntent(intent)
+    }
+
+    private fun isLauncherEntryIntent(intent: Intent?): Boolean {
+        if (intent == null) return false
+        if (intent.getStringExtra("contentId") != null) return true
+        val url = intent.dataString?.takeIf(String::isNotBlank) ?: return false
+        val deepLink = DeepLinkParser.parse(url)
+        return deepLink is AppDeepLink.Meta || deepLink is AppDeepLink.Search
     }
 
     private fun captureDeepLinkIntent(intent: Intent?) {
@@ -1723,25 +1767,27 @@ private fun LegacySidebarButton(
     var isFocused by remember { mutableStateOf(false) }
     val itemShape = NuvioTheme.shapes.navItem
     val backgroundColor by animateColorAsState(
+        // Vibe fork: Google TV style. The focused pill is the solid accent with dark text,
+        // the current page is a muted pill.
         targetValue = when {
-            isFocused -> NuvioTheme.colors.FocusBackground
-            expanded && selected -> NuvioTheme.colors.Secondary
+            isFocused -> NuvioTheme.colors.Secondary
+            expanded && selected -> NuvioTheme.colors.FocusBackground
             else -> Color.Transparent
         },
         label = "legacySidebarItemBackground"
     )
     val contentColor by animateColorAsState(
         targetValue = when {
-            isFocused -> NuvioTheme.colors.TextPrimary
-            expanded && selected -> NuvioTheme.colors.OnSecondary
+            isFocused -> NuvioTheme.colors.OnSecondary
+            expanded && selected -> NuvioTheme.colors.TextPrimary
             else -> NuvioTheme.colors.TextSecondary
         },
         label = "legacySidebarItemContent"
     )
     val iconTint by animateColorAsState(
         targetValue = when {
-            isFocused -> NuvioTheme.colors.TextPrimary
-            expanded && selected -> NuvioTheme.colors.OnSecondary
+            isFocused -> NuvioTheme.colors.OnSecondary
+            expanded && selected -> NuvioTheme.colors.TextPrimary
             selected -> NuvioTheme.colors.Secondary
             !expanded -> NuvioTheme.colors.TextTertiary
             else -> NuvioTheme.colors.TextSecondary
