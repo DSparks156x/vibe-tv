@@ -57,12 +57,19 @@ Changes from upstream NuvioTV:
 The first commit that touches `nuvio/` is an unmodified snapshot of upstream (the commit is named in
 its message), so `git diff <that commit> -- nuvio` shows exactly what the fork changes.
 
-## Building and installing
-See [docs/setup.md](docs/setup.md).
+## Installing
+Grab `vibe-launcher.apk` and the `vibe-nuvio-*.apk` for your TV (most are `armeabi-v7a`) from
+[Releases](../../releases), install both with `adb install`, then follow steps 4 to 6 of
+[docs/setup.md](docs/setup.md). Keys and servers are set in the launcher's Settings, or from your phone
+with the QR code shown there.
+
+To build it yourself, see [docs/setup.md](docs/setup.md).
 
 ## License
 GPL-3.0 (see [LICENSE](LICENSE)). NuvioTV is GPL-3.0, and the launcher uses the same license.
 The bundled Google Sans font is © The Google Sans Project Authors, under the SIL Open Font
 License 1.1 ([docs/fonts/GoogleSans-OFL.txt](docs/fonts/GoogleSans-OFL.txt)).
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 Not affiliated with Google, Stremio or NuvioMedia.

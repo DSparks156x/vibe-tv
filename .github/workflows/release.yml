@@ -1,0 +1,114 @@
+# Builds both apps and publishes them as a GitHub release.
+# Runs on tags like v0.2.0 (creates the release) or by hand from the Actions tab (artifacts only).
+#
+# Repo secrets (Settings > Secrets and variables > Actions):
+#   VIBE_KEYSTORE_BASE64     base64 of the .jks that signs BOTH apps (they must share a key)
+#   VIBE_KEYSTORE_PASSWORD   keystore password
+#   VIBE_KEY_ALIAS           key alias
+#   VIBE_KEY_PASSWORD        key password
+#   TMDB_API_KEY, TRAKT_CLIENT_ID, TRAKT_CLIENT_SECRET, SIMKL_CLIENT_ID,
+#   MDBLIST_CLIENT_ID, PREMIUMIZE_CLIENT_ID    optional app keys baked into Nuvio
+# Without the keystore secrets the build still runs, signed with a throwaway debug key.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NDK_VERSION: "29.0.14206865"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-36" "build-tools;36.1.0" "ndk;$NDK_VERSION" > /dev/null
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.VIBE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.VIBE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.VIBE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.VIBE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No VIBE_KEYSTORE_BASE64 secret; signing with a throwaway debug key."
+            exit 0
+          fi
+          ks="$RUNNER_TEMP/vibe.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$ks"
+          {
+            echo "storeFile=$ks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > "$RUNNER_TEMP/signing.properties"
+          {
+            echo "VIBE_SIGNING_PROPERTIES=$RUNNER_TEMP/signing.properties"
+            echo "NUVIO_RELEASE_STORE_FILE=$ks"
+            echo "NUVIO_RELEASE_STORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "NUVIO_RELEASE_KEY_ALIAS=$KEY_ALIAS"
+            echo "NUVIO_RELEASE_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Nuvio app keys
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+          SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
+          MDBLIST_CLIENT_ID: ${{ secrets.MDBLIST_CLIENT_ID }}
+          PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
+        run: |
+          {
+            for k in TMDB_API_KEY TRAKT_CLIENT_ID TRAKT_CLIENT_SECRET SIMKL_CLIENT_ID MDBLIST_CLIENT_ID PREMIUMIZE_CLIENT_ID; do
+              echo "$k=${!k}"
+            done
+          } > nuvio/local.properties
+
+      - name: Build launcher
+        working-directory: launcher
+        env:
+          VIBE_VERSION_NAME: ${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.run_number) }}
+        run: chmod +x gradlew && ./gradlew --no-daemon assembleRelease
+
+      - name: Build Nuvio
+        working-directory: nuvio
+        run: chmod +x gradlew && ./gradlew --no-daemon assembleFullRelease
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp launcher/app/build/outputs/apk/release/app-release.apk dist/vibe-launcher.apk
+          for f in nuvio/app/build/outputs/apk/full/release/*.apk; do
+            abi=$(basename "$f" .apk | grep -oE 'armeabi-v7a|arm64-v8a|x86_64|x86|universal' || echo all)
+            cp "$f" "dist/vibe-nuvio-$abi.apk"
+          done
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibe-tv-apks
+          path: dist/*.apk
+
+      - name: GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.apk --title "Vibe TV $GITHUB_REF_NAME" --generate-notes

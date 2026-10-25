@@ -1,6 +1,5 @@
 package com.nuvio.tv.ui.screens.settings
 
-import com.nuvio.tv.core.vibe.RuntimeConfig
 import android.content.Context
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
@@ -310,7 +309,7 @@ class DebridSettingsViewModel @Inject constructor(
     }
 
     private fun premiumizeClientIdOrThrow(): String =
-        RuntimeConfig.premiumizeClientId.trim().takeIf { it.isNotBlank() }
+        BuildConfig.PREMIUMIZE_CLIENT_ID.trim().takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("Premiumize sign-in is missing PREMIUMIZE_CLIENT_ID.")
 
     private fun torboxDeviceAuthorizationTokenResult(

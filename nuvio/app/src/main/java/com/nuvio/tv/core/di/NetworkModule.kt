@@ -1,6 +1,5 @@
 package com.nuvio.tv.core.di
 
-import com.nuvio.tv.core.vibe.RuntimeConfig
 import android.content.Context
 import android.util.Log
 import com.nuvio.tv.BuildConfig
@@ -252,7 +251,7 @@ object NetworkModule {
             val newRequest = request.newBuilder()
                 .header("Content-Type", "application/json")
                 .header("User-Agent", "Nuvio/$version")
-                .header("trakt-api-key", RuntimeConfig.traktClientId)
+                .header("trakt-api-key", BuildConfig.TRAKT_CLIENT_ID)
                 .header("trakt-api-version", "2")
                 .build()
 
@@ -427,7 +426,7 @@ object NetworkModule {
     @Named("introDb")
     fun provideIntroDbRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit =
         Retrofit.Builder()
-            .baseUrl(RuntimeConfig.introDbApiUrl.ifEmpty { "https://localhost/" })
+            .baseUrl(BuildConfig.INTRODB_API_URL.ifEmpty { "https://localhost/" })
             .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
@@ -547,7 +546,7 @@ object NetworkModule {
     @Named("trailer")
     fun provideTrailerRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit =
         Retrofit.Builder()
-            .baseUrl(RuntimeConfig.trailerApiUrl.ifEmpty { "https://localhost/" })
+            .baseUrl(BuildConfig.TRAILER_API_URL.ifEmpty { "https://localhost/" })
             .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
@@ -580,7 +579,7 @@ object NetworkModule {
     @Singleton
     @Named("seriesGraph")
     fun provideSeriesGraphRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
-        val rawBaseUrl = RuntimeConfig.imdbRatingsApiBaseUrl
+        val rawBaseUrl = BuildConfig.IMDB_RATINGS_API_BASE_URL
         val normalizedBaseUrl = if (rawBaseUrl.isNotBlank()) {
             if (rawBaseUrl.endsWith('/')) rawBaseUrl else "$rawBaseUrl/"
         } else {
@@ -602,7 +601,7 @@ object NetworkModule {
     @Singleton
     @Named("imdbTapframe")
     fun provideImdbTapframeRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
-        val rawBaseUrl = RuntimeConfig.imdbTapframeApiBaseUrl
+        val rawBaseUrl = BuildConfig.IMDB_TAPFRAME_API_BASE_URL
         val normalizedBaseUrl = if (rawBaseUrl.isNotBlank()) {
             if (rawBaseUrl.endsWith('/')) rawBaseUrl else "$rawBaseUrl/"
         } else {

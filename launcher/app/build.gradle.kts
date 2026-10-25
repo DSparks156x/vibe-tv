@@ -29,8 +29,9 @@ android {
         applicationId = "com.vibe.tvlauncher"
         minSdk = 28
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        // Minutes since 2026-01-01, so every build (local or CI) installs over the previous one.
+        versionCode = ((System.currentTimeMillis() - 1_767_225_600_000L) / 60_000L).toInt()
+        versionName = System.getenv("VIBE_VERSION_NAME") ?: "dev"
     }
 
     signingConfigs {
