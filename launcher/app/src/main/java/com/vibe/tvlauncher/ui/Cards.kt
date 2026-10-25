@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +50,7 @@ import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import com.vibe.tvlauncher.data.AppEntry
+import kotlinx.coroutines.delay
 
 val CardShape = RoundedCornerShape(10.dp)
 
@@ -110,9 +112,19 @@ fun LandscapeCard(
     onLongClick: (() -> Unit)? = null,
     badge: String? = null,
     caption: String? = null,
+    /** Called once focus has rested on the card for a moment. */
+    onDwell: (() -> Unit)? = null,
 ) {
     val setBackdrop = LocalSetBackdrop.current
     var focused by remember { mutableStateOf(false) }
+    if (onDwell != null) {
+        LaunchedEffect(focused) {
+            if (focused) {
+                delay(1_500)
+                onDwell()
+            }
+        }
+    }
     Column(modifier.width(width)) {
         FocusCard(
             onClick = onClick,

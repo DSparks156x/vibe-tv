@@ -95,6 +95,7 @@ import com.vibe.tvlauncher.data.Meta
 import com.vibe.tvlauncher.data.Nuvio
 import com.vibe.tvlauncher.data.Overseerr
 import com.vibe.tvlauncher.data.Updater
+import com.vibe.tvlauncher.settings.LauncherPrefs
 import kotlin.concurrent.thread
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -348,6 +349,7 @@ private fun LazyListScope.section(
                     logo = c.meta.logoUrl(),
                     badge = c.subtitle,
                     onClick = { context.launch(Nuvio.resumeIntent(c)) },
+                    onDwell = { preload(context, c) },
                     onLongClick = { openMenu(MenuTarget.Title(c.meta, c)) },
                 )
             } }
@@ -364,6 +366,7 @@ private fun LazyListScope.section(
                     badge = "S${c.season} E${c.episode} · New",
                     caption = c.episodeTitle,
                     onClick = { context.launch(Nuvio.resumeIntent(c)) },
+                    onDwell = { preload(context, c) },
                     onLongClick = { openMenu(MenuTarget.Title(c.meta)) },
                 )
             } }
@@ -714,4 +717,11 @@ private fun installUpdate(context: Context, release: Updater.Release) {
         val error = Updater.install(context.applicationContext, release) ?: return@thread
         Handler(Looper.getMainLooper()).post { Toast.makeText(context, error, Toast.LENGTH_LONG).show() }
     }
+}
+
+/** Warms Nuvio's stream search (and maybe the link) for a card the user is resting on. */
+private fun preload(context: Context, item: ContinueItem) {
+    val mode = LauncherPrefs.preload(context)
+    if (mode == "off") return
+    thread { Nuvio.prefetch(context.applicationContext, item, resolve = mode == "links") }
 }

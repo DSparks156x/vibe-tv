@@ -196,6 +196,19 @@ object Nuvio {
         return values.keys.associateWith { o.optString(it, "Nuvio didn't answer") }
     }
 
+    /**
+     * Has Nuvio start the stream search for an episode or movie in the background (and, with [resolve],
+     * prepare the auto-picked link), so pressing play is near-instant. Fire-and-forget on Nuvio's side.
+     */
+    fun prefetch(context: Context, item: ContinueItem, resolve: Boolean) {
+        call(context, "prefetch", null, metaExtras(item.meta).apply {
+            putString("video_id", item.videoId ?: item.meta.id)
+            item.season?.let { putInt("season", it) }
+            item.episode?.let { putInt("episode", it) }
+            putBoolean("resolve", resolve)
+        })
+    }
+
     private fun metaExtras(meta: Meta) = android.os.Bundle().apply {
         putString("id", meta.id)
         putString("type", meta.type)

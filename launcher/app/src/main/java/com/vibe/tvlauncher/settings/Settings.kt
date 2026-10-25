@@ -39,6 +39,9 @@ object LauncherPrefs {
     /** Whether home rows lean on your watch history. Off = plain trending, nothing hidden. */
     fun personalize(c: Context) = prefs(c).getBoolean("personalize", true)
 
+    /** Hover preloading in Nuvio: "off", "streams" (search only) or "links" (also resolve the auto-pick). */
+    fun preload(c: Context) = prefs(c).getString("preload", "links") ?: "links"
+
     /** How hard Top picks lean toward your genres vs. what's popular: 0..1. */
     fun tasteWeight(c: Context) = when (prefs(c).getString("taste", "balanced")) {
         "light" -> 0.4
@@ -133,6 +136,17 @@ object SettingsRegistry {
         )
         add(
             Field(
+                "home.preload", "Home", "Get ready while I browse",
+                "Resting on a Continue watching or New episodes card for a moment has Nuvio find streams, " +
+                    "so play starts faster. \"Streams and links\" also prepares the auto-picked link, " +
+                    "which uses a debrid lookup per card.",
+                FieldType.Choice,
+                listOf("off" to "Off", "streams" to "Find streams", "links" to "Streams and links"),
+                LauncherPrefs.preload(c),
+            ),
+        )
+        add(
+            Field(
                 "home.taste", "Home", "Lean on my taste",
                 "How much Top picks favor your genres over what's popular.",
                 FieldType.Choice, listOf("light" to "A little", "balanced" to "Balanced", "strong" to "A lot"),
@@ -194,7 +208,7 @@ object SettingsRegistry {
             help = s.help,
             type = when (s.type) {
                 "secret" -> FieldType.Secret
-                "bool" -> FieldType.Toggle
+                "bool", "toggle" -> FieldType.Toggle
                 "choice" -> FieldType.Choice
                 else -> FieldType.Text
             },
@@ -250,6 +264,10 @@ object SettingsRegistry {
             in LauncherPrefs.HOME_ROWS.map { "row.${it.first}" } ->
                 LauncherPrefs.putBool(c, "row_" + f.key.removePrefix("row."), v.toBooleanStrictOrNull() ?: return "Use true or false")
             "home.personalize" -> LauncherPrefs.putBool(c, "personalize", v.toBooleanStrictOrNull() ?: return "Use true or false")
+            "home.preload" -> {
+                if (f.choices.none { it.first == v }) return "Unknown choice"
+                LauncherPrefs.put(c, "preload", v)
+            }
             "home.taste" -> {
                 if (f.choices.none { it.first == v }) return "Unknown choice"
                 LauncherPrefs.put(c, "taste", v)
