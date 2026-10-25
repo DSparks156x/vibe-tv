@@ -4,7 +4,10 @@ package com.vibe.tvlauncher.ui
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -90,6 +93,9 @@ import com.vibe.tvlauncher.data.AppEntry
 import com.vibe.tvlauncher.data.ContinueItem
 import com.vibe.tvlauncher.data.Meta
 import com.vibe.tvlauncher.data.Nuvio
+import com.vibe.tvlauncher.data.Overseerr
+import com.vibe.tvlauncher.data.Updater
+import kotlin.concurrent.thread
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -245,6 +251,7 @@ fun LauncherApp(vm: HomeViewModel) {
                     onSearch = { context.launch(com.vibe.tvlauncher.voice.VoiceActivity.typeIntent(context)) },
                     onAccount = onAccount,
                     onSettings = { context.launch(Intent(context, com.vibe.tvlauncher.settings.SettingsActivity::class.java)) },
+                    onUpdate = state.update?.let { release -> { installUpdate(context, release) } },
                     tabFocus = tabFocus,
                     onDown = {
                         if (tab == Tab.Home) runCatching { heroFocus.requestFocus() }
@@ -632,6 +639,10 @@ private fun LauncherMenu(target: MenuTarget, vm: HomeViewModel, state: HomeState
             // Library membership comes from Nuvio; null = this Nuvio build can't tell us.
             var inLibrary by remember(m.id) { mutableStateOf<Boolean?>(null) }
             LaunchedEffect(m.id) { inLibrary = vm.libraryContains(m) }
+            // Overseerr status; null while loading or if the server didn't answer, which still offers "Request".
+            val canRequest = remember(m.id) { Overseerr.configured(context) } && (m.type == "movie" || m.type == "series")
+            var requestStatus by remember(m.id) { mutableStateOf<Overseerr.Status?>(null) }
+            if (canRequest) LaunchedEffect(m.id) { requestStatus = vm.requestStatus(m) }
             val actions = buildList {
                 val cw = target.cw
                 if (cw != null) add(MenuAction(if (cw.nextUp) "Play next episode" else "Resume") { context.launch(Nuvio.resumeIntent(cw)) })
@@ -639,6 +650,16 @@ private fun LauncherMenu(target: MenuTarget, vm: HomeViewModel, state: HomeState
                 m.trailerYt?.let { yt -> add(MenuAction("Watch trailer") { context.openYouTube(yt) }) }
                 inLibrary?.let { lib ->
                     add(MenuAction(if (lib) "Remove from library" else "Add to library") { vm.toggleLibrary(m) })
+                }
+                if (canRequest) {
+                    val label = when (requestStatus) {
+                        Overseerr.Status.Requested -> "Requested"
+                        Overseerr.Status.Available -> "Available on server"
+                        Overseerr.Status.Partial -> if (m.type == "series") "Request missing seasons" else "Available on server"
+                        else -> "Request"
+                    }
+                    // Requested/available are informational: pressing just says so again.
+                    add(MenuAction(label) { vm.requestTitle(m) })
                 }
                 if (cw != null) {
                     add(MenuAction("Mark as watched") { vm.markWatched(cw) })
@@ -678,5 +699,19 @@ private fun LauncherMenu(target: MenuTarget, vm: HomeViewModel, state: HomeState
             } + MenuAction("Open Nuvio") { context.launch(Nuvio.mainIntent()) }
             ActionMenu("Who's watching?", null, actions, onDismiss)
         }
+    }
+}
+
+/** Asks for the "install unknown apps" switch once, then downloads and opens Android's installer. */
+private fun installUpdate(context: Context, release: Updater.Release) {
+    Updater.permissionIntent(context)?.let {
+        Toast.makeText(context, "Allow Vibe to install apps, then press Update again", Toast.LENGTH_LONG).show()
+        context.launch(it)
+        return
+    }
+    Toast.makeText(context, "Downloading ${release.tag}…", Toast.LENGTH_SHORT).show()
+    thread {
+        val error = Updater.install(context.applicationContext, release) ?: return@thread
+        Handler(Looper.getMainLooper()).post { Toast.makeText(context, error, Toast.LENGTH_LONG).show() }
     }
 }

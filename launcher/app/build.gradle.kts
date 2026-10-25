@@ -78,4 +78,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("com.google.zxing:core:3.5.3")
     implementation("androidx.profileinstaller:profileinstaller:1.3.1")
+    testImplementation("junit:junit:4.13.2")
+    // Real org.json: the Android stub on the unit-test classpath throws.
+    testImplementation("org.json:json:20250517")
 }

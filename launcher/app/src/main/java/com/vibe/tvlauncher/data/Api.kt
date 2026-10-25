@@ -60,7 +60,7 @@ private fun enc(s: String) = Uri.encode(s)
 class ApiException(message: String) : IOException(message)
 
 object Http {
-    private const val UA = "VibeTV/0.1 (Android TV)"
+    const val UA = "VibeTV/0.1 (Android TV)"
 
     fun get(url: String): String {
         val c = URL(url).openConnection() as HttpURLConnection
@@ -127,6 +127,11 @@ object Cinemeta {
     /** Full metadata for one title (used for genres of Continue watching items). */
     fun meta(type: String, id: String): Meta? =
         runCatching { parseMeta(JSONObject(Http.get("$BASE/meta/$type/$id.json")).optJSONObject("meta")) }.getOrNull()
+
+    /** TMDB id from Cinemeta's meta, when it has one ("moviedb_id"). */
+    fun tmdbId(type: String, id: String): Int? = runCatching {
+        JSONObject(Http.get("$BASE/meta/$type/$id.json")).optJSONObject("meta")?.optInt("moviedb_id", 0)?.takeIf { it > 0 }
+    }.getOrNull()
 
     fun parseCatalog(raw: String): List<Meta> {
         val arr = JSONObject(raw).optJSONArray("metas") ?: return emptyList()

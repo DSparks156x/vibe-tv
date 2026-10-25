@@ -13,6 +13,8 @@ import com.vibe.tvlauncher.data.ContinueItem
 import com.vibe.tvlauncher.data.Meta
 import com.vibe.tvlauncher.data.Nuvio
 import com.vibe.tvlauncher.data.NuvioProfile
+import com.vibe.tvlauncher.data.Overseerr
+import com.vibe.tvlauncher.data.Updater
 import com.vibe.tvlauncher.data.Weather
 import com.vibe.tvlauncher.data.WeatherApi
 import com.vibe.tvlauncher.settings.LauncherPrefs
@@ -53,6 +55,8 @@ data class HomeState(
     val avatar: String? = null,
     /** Home rows switched off in settings (keys from LauncherPrefs.HOME_ROWS). */
     val hiddenRows: Set<String> = emptySet(),
+    /** A newer launcher release on GitHub, if there is one. */
+    val update: Updater.Release? = null,
 )
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
@@ -63,6 +67,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<HomeState> = _state
 
     private var lastCatalogLoad = 0L
+
+    private var lastUpdateCheck = 0L
     private var lastWeatherLoad = 0L
     private var lastSettings: List<Any?>? = null
 
@@ -122,6 +128,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         if (force || now - lastCatalogLoad > 30 * 60_000) {
             lastCatalogLoad = now
             viewModelScope.launch { loadCatalogs() }
+        }
+        if (now - lastUpdateCheck > 6 * 3_600_000L) {
+            lastUpdateCheck = now
+            viewModelScope.launch {
+                val release = withContext(Dispatchers.IO) { Updater.check(app) }
+                _state.update { it.copy(update = release) }
+            }
         }
     }
 
@@ -193,6 +206,16 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     fun switchProfile(id: String) = nuvioAction("Couldn't switch profile (PIN locked?)") { Nuvio.setProfile(it, id) }
+
+    suspend fun requestStatus(meta: Meta): Overseerr.Status? =
+        withContext(Dispatchers.IO) { Overseerr.status(getApplication(), meta) }
+
+    fun requestTitle(meta: Meta) {
+        viewModelScope.launch {
+            val msg = withContext(Dispatchers.IO) { Overseerr.request(getApplication(), meta) }
+            android.widget.Toast.makeText(getApplication(), msg, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // ---- Your apps editing ----
 

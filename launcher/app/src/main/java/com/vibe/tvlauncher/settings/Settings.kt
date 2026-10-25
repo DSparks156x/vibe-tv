@@ -51,6 +51,11 @@ object LauncherPrefs {
 
     fun location(c: Context) = prefs(c).getString("location", null)
 
+    /** Overseerr/Jellyseerr base URL, no trailing slash. */
+    fun overseerrUrl(c: Context) = get(c, "overseerrUrl")?.trim()?.trimEnd('/')?.ifEmpty { null }
+
+    fun overseerrKey(c: Context) = get(c, "overseerrKey")?.trim()?.ifEmpty { null }
+
     /** Home rows that can be switched off: key to label. Continue watching always shows. */
     val HOME_ROWS = listOf(
         "newep" to "New episodes",
@@ -160,6 +165,20 @@ object SettingsRegistry {
         )
         add(
             Field(
+                "overseerr.url", "Requests", "Server URL",
+                "Overseerr or Jellyseerr address, e.g. http://192.168.1.10:5055",
+                FieldType.Text, value = LauncherPrefs.overseerrUrl(c).orEmpty(),
+            ),
+        )
+        add(
+            Field(
+                "overseerr.key", "Requests", "API key",
+                "From Overseerr > Settings > General. With both set, hold OK on a title to request it.",
+                FieldType.Secret, value = if (LauncherPrefs.overseerrKey(c) != null) "set" else "",
+            ),
+        )
+        add(
+            Field(
                 "profile.avatar", "Profile", "Avatar image URL",
                 "Overrides the Nuvio profile picture. Empty = use Nuvio's.",
                 FieldType.Text, value = LauncherPrefs.get(c, "avatarUrl").orEmpty(),
@@ -240,6 +259,11 @@ object SettingsRegistry {
                 if (f.choices.none { it.first == v }) return "Unknown choice"
                 LauncherPrefs.put(c, "units", v)
             }
+            "overseerr.url" -> {
+                if (v.isNotEmpty() && !v.startsWith("http://") && !v.startsWith("https://")) return "Must start with http:// or https://"
+                LauncherPrefs.put(c, "overseerrUrl", v.trimEnd('/'))
+            }
+            "overseerr.key" -> LauncherPrefs.put(c, "overseerrKey", v)
             "profile.avatar" -> {
                 if (v.isNotEmpty() && !v.startsWith("http")) return "Must be an http(s) URL"
                 LauncherPrefs.put(c, "avatarUrl", v)
