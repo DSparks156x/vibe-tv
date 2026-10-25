@@ -14,32 +14,47 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Updates the launcher from the project's GitHub releases. Only release builds (versionName "v1.2.3")
- * are offered updates; local and CI dev builds never are. Nuvio updates itself the same way.
+ * Updates the launcher and Vibe Nuvio from the project's GitHub releases, one Update button for both.
+ * Only release builds (versionName "v1.2.3") are offered updates; local and CI dev builds never are.
  */
 object Updater {
     private const val TAG = "VibeUpdate"
     private const val LATEST = "https://api.github.com/repos/DSparks156x/vibe-tv/releases/latest"
-    private const val ASSET = "vibe-launcher.apk"
+    private const val LAUNCHER_ASSET = "vibe-launcher.apk"
     private const val ACTION_STATUS = "com.vibe.tvlauncher.UPDATE_STATUS"
+    private const val QUEUE = "update_queue"
 
-    data class Release(val tag: String, val apkUrl: String)
+    /** One app to update: its package and the APK to install. */
+    data class App(val pkg: String, val url: String)
 
-    fun currentVersion(context: Context): String =
-        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "dev"
+    /** A newer release; [apps] are installed in order (Nuvio first, the launcher last since it restarts). */
+    data class Release(val tag: String, val apps: List<App>)
 
-    /** The latest release if it's newer than this build; blocking. */
+    private fun versionOf(context: Context, pkg: String): Version? =
+        runCatching { context.packageManager.getPackageInfo(pkg, 0).versionName }.getOrNull()?.let(::parse)
+
+    /** The latest release if it's newer than this launcher or the installed Nuvio; blocking. */
     fun check(context: Context): Release? {
-        val current = parse(currentVersion(context)) ?: return null
+        val launcher = versionOf(context, context.packageName)
+        val nuvio = versionOf(context, Nuvio.PACKAGE)
+        if (launcher == null && nuvio == null) return null
         return try {
             val o = JSONObject(Http.get(LATEST))
             val tag = o.optString("tag_name")
             val latest = parse(tag) ?: return null
-            if (compare(latest, current) <= 0) return null
             val assets = o.optJSONArray("assets") ?: return null
-            (0 until assets.length()).map { assets.getJSONObject(it) }
-                .firstOrNull { it.optString("name") == ASSET }
-                ?.let { Release(tag, it.getString("browser_download_url")) }
+            val urls = (0 until assets.length()).map { assets.getJSONObject(it) }
+                .associate { it.optString("name") to it.optString("browser_download_url") }
+            val apps = buildList {
+                if (nuvio != null && compare(latest, nuvio) > 0) {
+                    val abi = Build.SUPPORTED_ABIS.firstOrNull()
+                    (urls["vibe-nuvio-$abi.apk"] ?: urls["vibe-nuvio-universal.apk"])?.let { add(App(Nuvio.PACKAGE, it)) }
+                }
+                if (launcher != null && compare(latest, launcher) > 0) {
+                    urls[LAUNCHER_ASSET]?.let { add(App(context.packageName, it)) }
+                }
+            }
+            if (apps.isEmpty()) null else Release(tag, apps)
         } catch (e: Exception) {
             Log.w(TAG, "update check failed: ${e.message}")
             null
@@ -78,21 +93,26 @@ object Updater {
         else Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
 
     /**
-     * Downloads the APK and hands it to the package installer, which shows Android's confirmation.
-     * Blocking; returns an error message, or null once the confirmation is up.
+     * Installs every app in [release], one after another; each shows Android's confirmation.
+     * Blocking; returns an error message, or null once the first confirmation is up.
      */
-    fun install(context: Context, release: Release): String? = try {
+    fun install(context: Context, release: Release): String? {
+        saveQueue(context, release.apps.drop(1))
+        return installOne(context, release.apps.first())
+    }
+
+    private fun installOne(context: Context, app: App): String? = try {
         val installer = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
-            .apply { setAppPackageName(context.packageName) }
+            .apply { setAppPackageName(app.pkg) }
         val id = installer.createSession(params)
         installer.openSession(id).use { session ->
-            val conn = URL(release.apkUrl).openConnection() as HttpURLConnection
+            val conn = URL(app.url).openConnection() as HttpURLConnection
             conn.connectTimeout = 15_000
             conn.readTimeout = 30_000
             conn.setRequestProperty("User-Agent", Http.UA)
             conn.inputStream.use { input ->
-                session.openWrite(ASSET, 0, -1).use { out ->
+                session.openWrite("${app.pkg}.apk", 0, -1).use { out ->
                     input.copyTo(out)
                     session.fsync(out)
                 }
@@ -106,11 +126,25 @@ object Updater {
         }
         null
     } catch (e: Exception) {
-        Log.w(TAG, "update install failed", e)
+        Log.w(TAG, "update install failed for ${app.pkg}", e)
         "Couldn't download the update"
     }
 
-    /** Receives the installer's status; shows its confirmation screen when it asks for one. */
+    private fun prefs(context: Context) = context.getSharedPreferences("updater", Context.MODE_PRIVATE)
+
+    private fun saveQueue(context: Context, apps: List<App>) {
+        prefs(context).edit().putString(QUEUE, apps.joinToString("
+") { "${it.pkg} ${it.url}" }).apply()
+    }
+
+    private fun popQueue(context: Context): App? {
+        val apps = prefs(context).getString(QUEUE, null).orEmpty().lines().filter { it.isNotBlank() }
+            .map { App(it.substringBefore(' '), it.substringAfter(' ')) }
+        saveQueue(context, apps.drop(1))
+        return apps.firstOrNull()
+    }
+
+    /** Receives the installer's status: shows its confirmation, then moves on to the next app. */
     class StatusReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
@@ -118,10 +152,17 @@ object Updater {
                     @Suppress("DEPRECATION")
                     val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
                     context.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    return
                 }
-                PackageInstaller.STATUS_SUCCESS -> Unit // The new launcher starts on its own.
+                PackageInstaller.STATUS_SUCCESS -> Unit
                 else -> Log.w(TAG, "install failed: ${intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)}")
             }
+            // Done with one app (or it was cancelled): carry on with the next, if any.
+            val next = popQueue(context) ?: return
+            val pending = goAsync()
+            Thread {
+                try { installOne(context.applicationContext, next) } finally { pending.finish() }
+            }.start()
         }
     }
 
