@@ -242,10 +242,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                     val eps = if (cached != null && now - cached.first < 6 * 3_600_000L) cached.second
                     else Cinemeta.episodes(show.id).also { episodeCache[show.id] = now to it }
                     val last = reached[show.id]
-                    eps.filter { it.released in (now - window)..now }
+                    // Shows often drop several episodes at once; point at the first unwatched one and say how many.
+                    val fresh = eps.filter { it.released in (now - window)..now }
                         .filter { e -> last == null || e.season > last.first || (e.season == last.first && e.episode > last.second) }
                         .filter { it.id !in inCw }
-                        .maxByOrNull { it.released }
+                        .sortedWith(compareBy({ it.season }, { it.episode }))
+                    fresh.firstOrNull()
                         ?.let { e ->
                             ContinueItem(
                                 meta = show,
@@ -253,8 +255,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                                 progress = 0f,
                                 season = e.season,
                                 episode = e.episode,
-                                lastWatched = e.released,
-                                episodeTitle = e.title,
+                                lastWatched = fresh.maxOf { it.released },
+                                episodeTitle = if (fresh.size > 1) listOfNotNull(e.title, "${fresh.size} new").joinToString(" · ") else e.title,
                                 nextUp = true,
                                 thumbnail = e.thumbnail,
                             )
