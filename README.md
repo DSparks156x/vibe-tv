@@ -2,7 +2,7 @@
 
 Google TV looks great, but its an ad riddled piece of shit now and expects your content to come from bougee premium name brand streaming services. And even worse - It uses Gemini as a mediocre voice search assistant thing. Google strikes again. 
 
-That's where VibeTV comes in. The familiar nice looking launcher with content recommendations etc etc, but powered by whatever less legitimate content sources you want through Nuvio. I know what you are. 
+That's where VibeTV comes in. The familiar nice looking launcher with content recommendations etc etc, but powered by whatever less legitimate content sources you want through Nuvio. I know what you are. 🏴‍☠️
 
 Anyways this repo has 2.5 components - A launcher replacement,  an assistant replacement (part of the  launcher) and a nuvio fork. 
 
