@@ -111,20 +111,21 @@ sealed interface Section {
 }
 
 private fun homeSections(s: HomeState): List<Section> = buildList {
+    val on = { row: String -> row !in s.hiddenRows }
     when {
         !s.nuvio -> add(Section.SignIn)
         s.continueWatching.isNotEmpty() -> add(Section.Continue(s.continueWatching))
     }
-    if (s.newEpisodes.isNotEmpty()) add(Section.NewEpisodes(s.newEpisodes))
-    add(Section.Picks("picks", "Top picks for you", s.topPicks))
-    if (s.apps.isNotEmpty()) add(Section.Apps(s.apps.filter { !it.hidden }.take(14)))
-    s.tasteRows.forEachIndexed { i, (title, metas) -> add(Section.Posters("taste$i", title, metas)) }
-    add(Section.Posters("movies", "Trending movies", s.movies))
-    add(Section.Posters("shows", "Trending shows", s.shows))
-    s.addonRows.forEachIndexed { i, (title, metas) -> add(Section.Posters("addon$i", title, metas)) }
-    add(Section.Trailers(s.trailers))
-    add(Section.Posters("library", "Your library", s.library))
-    add(Section.Posters("rated", "Top rated movies", s.topRated))
+    if (on("newep") && s.newEpisodes.isNotEmpty()) add(Section.NewEpisodes(s.newEpisodes))
+    if (on("picks")) add(Section.Picks("picks", "Top picks for you", s.topPicks))
+    if (on("apps") && s.apps.isNotEmpty()) add(Section.Apps(s.apps.filter { !it.hidden }.take(14)))
+    if (on("taste")) s.tasteRows.forEachIndexed { i, (title, metas) -> add(Section.Posters("taste$i", title, metas)) }
+    if (on("movies")) add(Section.Posters("movies", "Trending movies", s.movies))
+    if (on("shows")) add(Section.Posters("shows", "Trending shows", s.shows))
+    if (on("addon")) s.addonRows.forEachIndexed { i, (title, metas) -> add(Section.Posters("addon$i", title, metas)) }
+    if (on("trailers")) add(Section.Trailers(s.trailers))
+    if (on("library")) add(Section.Posters("library", "Your library", s.library))
+    if (on("rated")) add(Section.Posters("rated", "Top rated movies", s.topRated))
 }
 
 private fun browseSections(rows: List<Pair<String, List<Meta>>>, type: String): List<Section> =

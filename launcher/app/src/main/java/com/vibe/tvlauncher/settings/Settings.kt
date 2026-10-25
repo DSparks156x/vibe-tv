@@ -51,6 +51,22 @@ object LauncherPrefs {
 
     fun location(c: Context) = prefs(c).getString("location", null)
 
+    /** Home rows that can be switched off: key to label. Continue watching always shows. */
+    val HOME_ROWS = listOf(
+        "newep" to "New episodes",
+        "picks" to "Top picks for you",
+        "apps" to "Your apps",
+        "taste" to "Because you watch…",
+        "movies" to "Trending movies",
+        "shows" to "Trending shows",
+        "addon" to "Your add-on catalogs",
+        "trailers" to "Trailers on YouTube",
+        "library" to "Your library",
+        "rated" to "Top rated movies",
+    )
+
+    fun hiddenRows(c: Context): Set<String> = HOME_ROWS.map { it.first }.filter { !prefs(c).getBoolean("row_$it", true) }.toSet()
+
     internal fun put(c: Context, key: String, value: String?) =
         prefs(c).edit().apply { if (value.isNullOrBlank()) remove(key) else putString(key, value) }.apply()
 
@@ -118,6 +134,15 @@ object SettingsRegistry {
                 LauncherPrefs.get(c, "taste") ?: "balanced",
             ),
         )
+
+        LauncherPrefs.HOME_ROWS.forEach { (key, label) ->
+            add(
+                Field(
+                    "row.$key", "Home rows", label, type = FieldType.Toggle,
+                    value = (key !in LauncherPrefs.hiddenRows(c)).toString(),
+                ),
+            )
+        }
 
         add(
             Field(
@@ -200,6 +225,8 @@ object SettingsRegistry {
                 VoicePrefs.setCustomUrl(c, v)
             }
             "assistant.model" -> VoicePrefs.setModel(c, VoicePrefs.provider(c), v.ifEmpty { null })
+            in LauncherPrefs.HOME_ROWS.map { "row.${it.first}" } ->
+                LauncherPrefs.putBool(c, "row_" + f.key.removePrefix("row."), v.toBooleanStrictOrNull() ?: return "Use true or false")
             "home.personalize" -> LauncherPrefs.putBool(c, "personalize", v.toBooleanStrictOrNull() ?: return "Use true or false")
             "home.taste" -> {
                 if (f.choices.none { it.first == v }) return "Unknown choice"

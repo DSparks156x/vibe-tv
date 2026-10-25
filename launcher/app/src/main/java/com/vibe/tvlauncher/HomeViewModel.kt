@@ -51,6 +51,8 @@ data class HomeState(
     val addonRows: List<Pair<String, List<Meta>>> = emptyList(),
     /** File path or URL of the profile picture, if one is set. */
     val avatar: String? = null,
+    /** Home rows switched off in settings (keys from LauncherPrefs.HOME_ROWS). */
+    val hiddenRows: Set<String> = emptySet(),
 )
 
 class HomeViewModel(app: Application) : AndroidViewModel(app) {
@@ -106,6 +108,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { loadNuvio() }
         // Settings may have changed while we were in the background.
         val app = getApplication<Application>()
+        _state.update { it.copy(hiddenRows = LauncherPrefs.hiddenRows(app)) }
         val settings = listOf(LauncherPrefs.personalize(app), LauncherPrefs.tasteWeight(app), LauncherPrefs.units(app), LauncherPrefs.location(app))
         val settingsChanged = settings != lastSettings
         if (settingsChanged && lastSettings != null) recompute()
