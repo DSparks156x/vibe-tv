@@ -17,7 +17,8 @@ class RemoteKeyService : AccessibilityService() {
         val intent = when (event.keyCode) {
             KeyEvent.KEYCODE_PROFILE_SWITCH ->
                 Intent(this, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN, MainActivity.OPEN_PROFILES)
-            KeyEvent.KEYCODE_SETTINGS -> Intent(Settings.ACTION_SETTINGS)
+            // Google TV remotes' gear sends NOTIFICATION; some remotes send SETTINGS.
+            KeyEvent.KEYCODE_NOTIFICATION, KeyEvent.KEYCODE_SETTINGS -> Intent(Settings.ACTION_SETTINGS)
             else -> return false
         }
         if (event.action == KeyEvent.ACTION_UP) startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
