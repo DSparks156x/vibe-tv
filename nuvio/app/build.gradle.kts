@@ -148,8 +148,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1071
-        versionName = "1.1.0-beta.8"
+        // Vibe fork: minutes since 2026-01-01 UTC (upstream was 1071), so every build, local or CI,
+        // installs over the previous one. Same scheme as the launcher.
+        versionCode = ((System.currentTimeMillis() - 1_767_225_600_000L) / 60_000L).toInt()
+        versionName = "1.1.0-beta.8-vibe"
 
         buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
         buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "https://api.introdb.app/")}\"")
