@@ -136,6 +136,36 @@ object Nuvio {
     fun setProfile(context: Context, id: String): Boolean =
         call(context, "set_profile", id, null)?.getBoolean("ok") == true
 
+    /** One of Nuvio's runtime settings (keys and servers a release build can't ship). */
+    data class Setting(val key: String, val label: String, val help: String, val type: String, val value: String, val group: String)
+
+    /** Nuvio's settings schema; empty when this Nuvio build doesn't expose settings. Secrets come back as "set"/"". */
+    fun settings(context: Context): List<Setting> {
+        val json = call(context, "get_settings", null, null)?.getString("json") ?: return emptyList()
+        val arr = runCatching { org.json.JSONObject(json).getJSONArray("fields") }.getOrNull() ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { i ->
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            Setting(
+                key = o.optString("key").ifEmpty { return@mapNotNull null },
+                label = o.optString("label").ifEmpty { o.optString("key") },
+                help = o.optString("help"),
+                type = o.optString("type", "text"),
+                value = o.optString("value"),
+                group = o.optString("group"),
+            )
+        }
+    }
+
+    /** Applies settings; returns key -> "ok" or an error message. An empty value resets to the build default. */
+    fun setSettings(context: Context, values: Map<String, String>): Map<String, String> {
+        val extras = android.os.Bundle().apply { values.forEach { (k, v) -> putString(k, v) } }
+        val json = call(context, "set_settings", null, extras)?.getString("json")
+            ?: return values.mapValues { "Nuvio didn't answer" }
+        val o = runCatching { org.json.JSONObject(json).getJSONObject("results") }.getOrNull()
+            ?: return values.mapValues { "Nuvio didn't answer" }
+        return values.keys.associateWith { o.optString(it, "Nuvio didn't answer") }
+    }
+
     private fun metaExtras(meta: Meta) = android.os.Bundle().apply {
         putString("id", meta.id)
         putString("type", meta.type)

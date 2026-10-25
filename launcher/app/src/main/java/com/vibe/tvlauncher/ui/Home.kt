@@ -243,7 +243,7 @@ fun LauncherApp(vm: HomeViewModel) {
                     onTab = { tab = it },
                     onSearch = { context.launch(com.vibe.tvlauncher.voice.VoiceActivity.typeIntent(context)) },
                     onAccount = onAccount,
-                    onSettings = { context.launch(Intent(Settings.ACTION_SETTINGS)) },
+                    onSettings = { context.launch(Intent(context, com.vibe.tvlauncher.settings.SettingsActivity::class.java)) },
                     tabFocus = tabFocus,
                     onDown = {
                         if (tab == Tab.Home) runCatching { heroFocus.requestFocus() }

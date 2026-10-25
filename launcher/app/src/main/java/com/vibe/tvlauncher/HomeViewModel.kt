@@ -15,6 +15,7 @@ import com.vibe.tvlauncher.data.Nuvio
 import com.vibe.tvlauncher.data.NuvioProfile
 import com.vibe.tvlauncher.data.Weather
 import com.vibe.tvlauncher.data.WeatherApi
+import com.vibe.tvlauncher.settings.LauncherPrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +62,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private var lastCatalogLoad = 0L
     private var lastWeatherLoad = 0L
+    private var lastSettings: List<Any?>? = null
 
     // Nuvio notifies this URI when watch progress / library change, so rows update live.
     private val nuvioObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
@@ -102,6 +104,13 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val now = System.currentTimeMillis()
         // Local provider query, cheap enough to run on every resume.
         viewModelScope.launch { loadNuvio() }
+        // Settings may have changed while we were in the background.
+        val app = getApplication<Application>()
+        val settings = listOf(LauncherPrefs.personalize(app), LauncherPrefs.tasteWeight(app), LauncherPrefs.units(app), LauncherPrefs.location(app))
+        val settingsChanged = settings != lastSettings
+        if (settingsChanged && lastSettings != null) recompute()
+        if (settingsChanged) lastWeatherLoad = 0
+        lastSettings = settings
         if (force || now - lastWeatherLoad > 20 * 60_000) {
             lastWeatherLoad = now
             viewModelScope.launch { loadWeather() }
@@ -283,8 +292,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun recompute() {
         val s = _state.value
-        val seen = seenIds(s)
-        val weights = tasteWeights(s)
+        val app = getApplication<Application>()
+        val personalize = LauncherPrefs.personalize(app)
+        val taste = LauncherPrefs.tasteWeight(app)
+        val seen = if (personalize) seenIds(s) else emptySet()
+        val weights = if (personalize) tasteWeights(s) else emptyMap()
         val total = weights.values.sum()
         // Alternate movies and shows so the hero and top picks feel mixed, like Google TV.
         val mixed = buildList {
@@ -299,7 +311,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         // Blend taste match with popularity so picks stay fresh but lean toward your genres.
         val picks = if (total <= 0) rest else rest.withIndex().sortedByDescending { (i, m) ->
             val affinity = m.genres.sumOf { weights[it] ?: 0.0 } / total
-            affinity * 0.7 + (1.0 - i.toDouble() / rest.size) * 0.3
+            affinity * taste + (1.0 - i.toDouble() / rest.size) * (1.0 - taste)
         }.map { it.value }
         _state.update {
             it.copy(
@@ -429,12 +441,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun loadWeather() {
         val w = withContext(Dispatchers.IO) {
             runCatching {
-                val pinned = prefs.getString("location", null)?.split(",")?.mapNotNull { it.trim().toDoubleOrNull() }
-                val place = if (pinned != null && pinned.size == 2) {
-                    WeatherApi.Place(pinned[0], pinned[1], null, java.util.Locale.getDefault().country == "US")
-                } else {
-                    WeatherApi.locate()
-                } ?: return@runCatching null
+                val app = getApplication<Application>()
+                val pinned = LauncherPrefs.location(app)
+                val guessF = java.util.Locale.getDefault().country == "US"
+                val found = (if (pinned != null) WeatherApi.place(pinned, guessF) else null) ?: WeatherApi.locate() ?: return@runCatching null
+                val place = when (LauncherPrefs.units(app)) {
+                    "f" -> found.copy(fahrenheit = true)
+                    "c" -> found.copy(fahrenheit = false)
+                    else -> found
+                }
                 WeatherApi.current(place)
             }.onFailure { Log.w(TAG, "weather failed", it) }.getOrNull()
         }

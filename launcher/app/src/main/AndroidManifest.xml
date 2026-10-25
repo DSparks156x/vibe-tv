@@ -63,6 +63,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Settings; while open it also serves the phone/computer setup page on the LAN. -->
+        <activity
+            android:name=".settings.SettingsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:windowSoftInputMode="adjustPan"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density" />
+
         <!-- Voice assistant: overlay + digital-assistant services (pick in Default apps > Assistant). -->
         <activity
             android:name=".voice.VoiceActivity"

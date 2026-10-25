@@ -95,9 +95,12 @@ import com.vibe.tvlauncher.ui.GoogleSans
 import com.vibe.tvlauncher.ui.LandscapeCard
 import com.vibe.tvlauncher.ui.LogoOrTitle
 import com.vibe.tvlauncher.ui.PadH
+import com.vibe.tvlauncher.ui.PillButton
 import com.vibe.tvlauncher.ui.PosterCard
 import com.vibe.tvlauncher.ui.RowTitle
 import com.vibe.tvlauncher.ui.TextSecondary
+import com.vibe.tvlauncher.ui.TvTextField
+import com.vibe.tvlauncher.ui.dpadExit
 
 private val Scrim = Color(0xFA0E0F12)
 private val GoogleColors = listOf(Color(0xFF4285F4), Color(0xFFEA4335), Color(0xFFFBBC04), Color(0xFF34A853))
@@ -501,13 +504,13 @@ private fun SettingsPanel(onDone: () -> Unit) {
                 provider = all[(all.indexOf(provider) + 1) % all.size]
                 VoicePrefs.setProvider(context, provider.id)
             }
-            if (provider.id != "off") PillButton("Done", onDone)
+            if (provider.id != "off") PillButton("Done", onClick = onDone)
         }
         if (provider.id == "custom") {
             Spacer(Modifier.height(12.dp))
             Text("Server URL: " + (url ?: "Not set"), color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp)
             Spacer(Modifier.height(6.dp))
-            SecretField(hint = provider.keyHint, secret = false) {
+            TvTextField(hint = provider.keyHint, secret = false) {
                 VoicePrefs.setCustomUrl(context, it); url = VoicePrefs.customUrl(context); refresh()
             }
         }
@@ -518,7 +521,7 @@ private fun SettingsPanel(onDone: () -> Unit) {
                 color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp,
             )
             Spacer(Modifier.height(6.dp))
-            SecretField(hint = "Type or paste the key, then Done", secret = true) {
+            TvTextField(hint = "Type or paste the key, then Done", secret = true) {
                 VoicePrefs.setApiKey(context, provider, it); key = VoicePrefs.apiKey(context, provider); refresh()
             }
             Spacer(Modifier.height(12.dp))
@@ -534,68 +537,7 @@ private fun SettingsPanel(onDone: () -> Unit) {
             status?.let { Text(it, color = TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
         } else {
             Spacer(Modifier.height(12.dp))
-            PillButton("Done", onDone)
+            PillButton("Done", onClick = onDone)
         }
-    }
-}
-
-@Composable
-private fun SecretField(hint: String, secret: Boolean, onSave: (String) -> Unit) {
-    var draft by remember { mutableStateOf(TextFieldValue("")) }
-    var focused by remember { mutableStateOf(false) }
-    val keyboard = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
-    BasicTextField(
-        value = draft,
-        onValueChange = { draft = it.copy(text = it.text.trim()) },
-        singleLine = true,
-        visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        textStyle = TextStyle(color = Color.White, fontSize = 16.sp, fontFamily = GoogleSans),
-        cursorBrush = SolidColor(Color.White),
-        keyboardOptions = KeyboardOptions(keyboardType = if (secret) KeyboardType.Password else KeyboardType.Uri, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = {
-            keyboard?.hide()
-            if (draft.text.isNotBlank()) { onSave(draft.text); draft = TextFieldValue("") }
-        }),
-        modifier = Modifier.fillMaxWidth().height(44.dp).onFocusChanged { focused = it.isFocused }.dpadExit(draft, focusManager)
-            .clip(RoundedCornerShape(22.dp)).background(Color.White.copy(alpha = 0.08f))
-            .border(2.dp, if (focused) Color.White else Color.Transparent, RoundedCornerShape(22.dp))
-            .padding(horizontal = 18.dp, vertical = 12.dp),
-        decorationBox = { inner ->
-            Box(contentAlignment = Alignment.CenterStart) {
-                if (draft.text.isEmpty()) Text(hint, color = TextSecondary, fontSize = 15.sp)
-                inner()
-            }
-        },
-    )
-}
-
-@Composable
-private fun PillButton(text: String, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.1f),
-            contentColor = Color.White,
-            focusedContainerColor = Color.White,
-            focusedContentColor = Color(0xFF202124),
-        ),
-    ) {
-        Text(text, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp))
-    }
-}
-
-/** TV text fields swallow the D-pad; let arrows leave the field at its edges so other buttons stay reachable. */
-private fun Modifier.dpadExit(value: TextFieldValue, focusManager: FocusManager): Modifier = onPreviewKeyEvent { e ->
-    if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-    val sel = value.selection
-    when (e.key) {
-        Key.DirectionUp -> focusManager.moveFocus(FocusDirection.Up)
-        Key.DirectionDown -> focusManager.moveFocus(FocusDirection.Down)
-        Key.DirectionRight -> sel.collapsed && sel.end >= value.text.length && focusManager.moveFocus(FocusDirection.Right)
-        Key.DirectionLeft -> sel.collapsed && sel.start == 0 && focusManager.moveFocus(FocusDirection.Left)
-        else -> false
     }
 }

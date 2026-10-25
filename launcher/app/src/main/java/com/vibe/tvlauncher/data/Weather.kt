@@ -33,6 +33,18 @@ object WeatherApi {
         )
     }.getOrNull()
 
+    /** A place typed in settings: "lat,lon" or a city name (Open-Meteo geocoding). */
+    fun place(query: String, fahrenheit: Boolean): Place? {
+        val nums = query.split(",").mapNotNull { it.trim().toDoubleOrNull() }
+        if (nums.size == 2) return Place(nums[0], nums[1], null, fahrenheit)
+        return runCatching {
+            val r = JSONObject(
+                Http.get("https://geocoding-api.open-meteo.com/v1/search?count=1&name=" + java.net.URLEncoder.encode(query.trim(), "UTF-8")),
+            ).optJSONArray("results")?.optJSONObject(0) ?: return null
+            Place(r.getDouble("latitude"), r.getDouble("longitude"), r.optString("name").ifEmpty { null }, fahrenheit)
+        }.getOrNull()
+    }
+
     fun current(p: Place): Weather {
         val unit = if (p.fahrenheit) "fahrenheit" else "celsius"
         val o = JSONObject(
