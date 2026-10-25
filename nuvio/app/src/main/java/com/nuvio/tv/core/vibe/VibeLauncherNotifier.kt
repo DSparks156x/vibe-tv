@@ -80,6 +80,7 @@ class VibeLauncherNotifier @Inject constructor(
 
     private companion object {
         const val TAG = "VibeLauncherNotifier"
-        const val DEBOUNCE_MS = 1_500L
+        // Short: the launcher re-queries as soon as Nuvio goes to the background after playback.
+        const val DEBOUNCE_MS = 300L
     }
 }

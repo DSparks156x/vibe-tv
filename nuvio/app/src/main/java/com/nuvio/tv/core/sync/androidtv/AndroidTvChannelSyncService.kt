@@ -6,6 +6,10 @@ import com.nuvio.tv.core.poster.CustomPosterScreen
 import com.nuvio.tv.core.poster.patternForScreen
 import com.nuvio.tv.core.poster.withCustomPosterArt
 import com.nuvio.tv.domain.repository.WatchProgressRepository
+import com.nuvio.tv.domain.repository.MetaRepository
+import com.nuvio.tv.core.network.NetworkResult
+import com.nuvio.tv.core.util.isEpisodeReleaseAired
+import kotlinx.coroutines.withTimeoutOrNull
 import com.nuvio.tv.core.recommendations.TvRecommendationManager
 import com.nuvio.tv.data.local.CachedInProgressItem
 import com.nuvio.tv.data.local.CachedNextUpItem
@@ -29,6 +33,8 @@ import javax.inject.Singleton
 
 private const val TAG = "TvChannelSync"
 private const val DEBOUNCE_MS = 2_000L
+private const val NEXT_EPISODE_FETCH_TIMEOUT_MS = 2_500L
+private const val NEXT_EPISODE_MEMO_MS = 10 * 60 * 1000L
 
 /**
  * Keeps the Android TV "Continue Watching" preview channel in sync with the app's
@@ -50,8 +56,11 @@ class AndroidTvChannelSyncService @Inject constructor(
     private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
     private val traktSettingsDataStore: TraktSettingsDataStore,
     private val tvRecommendationManager: TvRecommendationManager,
-    private val watchProgressRepository: WatchProgressRepository
+    private val watchProgressRepository: WatchProgressRepository,
+    private val metaRepository: MetaRepository
 ) {
+    private val liveBuilder = LiveContinueWatchingBuilder(::resolveNextEpisode)
+    private val nextEpisodeMemo = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, LiveContinueWatchingBuilder.NextEpisode?>>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // The launcher channel is only visible while the app is in the background. Reconciling on
@@ -149,26 +158,61 @@ class AndroidTvChannelSyncService @Inject constructor(
             layoutPreferenceDataStore.customPosterEnabledScreens.first()
         )
         val live = runCatching { watchProgressRepository.allProgress.first() }.getOrNull()
-        return buildChannelItems(inProgressItems, nextUpItems, resolvedSettings)
-            .filter { live == null || it.isStillPending(live) }
-            .map { it.copy(progress = it.progress.withCustomPosterArt(posterPattern)) }
+        val entries = if (live != null) {
+            // Vibe fork: live progress first, so rows are right without Nuvio's home having run.
+            liveBuilder.build(
+                live = live,
+                inProgressCache = inProgressItems,
+                nextUpCache = nextUpItems,
+                daysCap = resolvedSettings.daysCap.takeUnless {
+                    it == TraktSettingsDataStore.CONTINUE_WATCHING_DAYS_CAP_ALL
+                },
+                dismissedNextUp = resolvedSettings.dismissedNextUp,
+                useEpisodeThumbnails = resolvedSettings.useEpisodeThumbnails
+            )
+        } else {
+            buildChannelItems(inProgressItems, nextUpItems, resolvedSettings)
+        }
+        return entries.map { it.copy(progress = it.progress.withCustomPosterArt(posterPattern)) }
     }
 
-    /**
-     * The enrichment cache is only rebuilt while Nuvio's home is open, so rows can be stale after
-     * progress changes made elsewhere (the Vibe launcher's "Mark watched" / "Remove", playback that
-     * ended without visiting home). Drop rows the live progress says are finished or removed.
-     */
-    private fun LauncherCwEntry.isStillPending(live: List<WatchProgress>): Boolean {
-        val p = progress
-        val sameTitle = live.filter { it.contentId == p.contentId }
-        val sameEpisode = sameTitle.firstOrNull { it.season == p.season && it.episode == p.episode }
-        return when (kind) {
-            // In progress: must still have saved progress that isn't completed.
-            LauncherCwEntry.KIND_IN_PROGRESS -> sameEpisode != null && !sameEpisode.isCompleted()
-            // Next up: gone once that episode itself is watched.
-            else -> sameEpisode?.isCompleted() != true
+    /** The aired episode after [season]x[episode], from cached or freshly fetched series meta. */
+    private suspend fun resolveNextEpisode(
+        contentId: String,
+        season: Int,
+        episode: Int
+    ): LiveContinueWatchingBuilder.NextEpisode? {
+        val key = "$contentId:$season:$episode"
+        val now = System.currentTimeMillis()
+        nextEpisodeMemo[key]?.let { (at, value) -> if (now - at < NEXT_EPISODE_MEMO_MS) return value }
+        val meta = metaRepository.getCachedMeta("series", contentId)
+            ?: withTimeoutOrNull(NEXT_EPISODE_FETCH_TIMEOUT_MS) {
+                metaRepository.getMetaFromPrimaryAddon("series", contentId)
+                    .first { it !is NetworkResult.Loading }
+                    .let { (it as? NetworkResult.Success)?.data }
+            }
+            ?: return null // not memoized: retry on the next query
+        val episodes = meta.videos
+            .filter { (it.season ?: 0) > 0 && it.episode != null }
+            .sortedWith(compareBy({ it.season }, { it.episode }))
+        val index = episodes.indexOfFirst { it.season == season && it.episode == episode }
+        val next = episodes.getOrNull(index + 1)
+            ?.takeIf { index >= 0 && isEpisodeReleaseAired(it.released) != false }
+        val result = next?.let {
+            LiveContinueWatchingBuilder.NextEpisode(
+                videoId = it.id,
+                season = it.season ?: return@let null,
+                episode = it.episode ?: return@let null,
+                title = it.title,
+                thumbnail = it.thumbnail,
+                name = meta.name,
+                poster = meta.poster,
+                backdrop = meta.background,
+                logo = meta.logo
+            )
         }
+        nextEpisodeMemo[key] = now to result
+        return result
     }
 
     /**
