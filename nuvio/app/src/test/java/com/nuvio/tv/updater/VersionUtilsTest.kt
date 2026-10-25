@@ -39,4 +39,12 @@ class VersionUtilsTest {
     fun `current beta naming is recognized as prerelease`() {
         assertTrue(VersionUtils.isPrerelease("0.8.12-beta"))
     }
+
+    @Test
+    fun `only release tag builds are offered updates`() {
+        assertTrue(VersionUtils.isOfferableUpdate("v0.2.0", "v0.1.0"))
+        assertFalse(VersionUtils.isOfferableUpdate("v0.1.0", "v0.1.0"))
+        assertFalse(VersionUtils.isOfferableUpdate("v0.2.0", "dev-42"))
+        assertFalse(VersionUtils.isOfferableUpdate("v9.0.0", "1.1.0-beta.8-vibe"))
+    }
 }

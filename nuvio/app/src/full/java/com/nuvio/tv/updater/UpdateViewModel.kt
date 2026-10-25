@@ -98,7 +98,7 @@ class UpdateViewModel @Inject constructor(
 
             result
                 .onSuccess { update ->
-                    val remoteNewer = VersionUtils.isRemoteNewer(update.tag, BuildConfig.VERSION_NAME)
+                    val remoteNewer = VersionUtils.isOfferableUpdate(update.tag, BuildConfig.VERSION_NAME)
                     val downloadedFile = if (remoteNewer) downloadStore.downloadedFileFor(update) else null
                     // The release just installed carries the notes the "updated" banner can show.
                     val installedUpdate = _uiState.value.installedUpdate?.let { installed ->
@@ -322,7 +322,7 @@ class UpdateViewModel @Inject constructor(
     private suspend fun consumeAutoInstalledUpdate() {
         val tag = updatePreferences.autoInstalledTag.first() ?: return
         // Still older than the installed version means the install has not happened yet.
-        if (VersionUtils.isRemoteNewer(tag, BuildConfig.VERSION_NAME)) return
+        if (VersionUtils.isOfferableUpdate(tag, BuildConfig.VERSION_NAME)) return
         updatePreferences.setAutoInstalledTag(null)
         if (VersionUtils.isRemoteNewer(BuildConfig.VERSION_NAME, tag)) return
         if (!_uiState.value.autoInstallNoticeEnabled) return

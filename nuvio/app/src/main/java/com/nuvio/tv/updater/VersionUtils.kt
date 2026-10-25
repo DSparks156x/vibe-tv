@@ -70,6 +70,13 @@ internal object VersionUtils {
 
     fun isPrerelease(raw: String?): Boolean = parse(raw)?.prerelease?.isNotEmpty() == true
 
+    /** Vibe fork: a release build's version is its tag, e.g. "v0.1.0"; dev-<n> and local builds are not. */
+    fun isReleaseTag(raw: String?): Boolean = raw?.trim()?.startsWith("v") == true && parse(raw) != null
+
+    /** Vibe fork: offer [remote] only to release-tag builds, and only when it is newer. */
+    fun isOfferableUpdate(remote: String?, installed: String?): Boolean =
+        isReleaseTag(installed) && isRemoteNewer(remote, installed)
+
     fun isRemoteNewer(remote: String?, local: String?): Boolean {
         val remoteVersion = parse(remote) ?: return false
         val localVersion = parse(local) ?: return false

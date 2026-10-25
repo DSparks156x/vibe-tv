@@ -151,7 +151,9 @@ android {
         // Vibe fork: minutes since 2026-01-01 UTC (upstream was 1071), so every build, local or CI,
         // installs over the previous one. Same scheme as the launcher.
         versionCode = ((System.currentTimeMillis() - 1_767_225_600_000L) / 60_000L).toInt()
-        versionName = "1.1.0-beta.8-vibe"
+        // Vibe fork: CI sets VIBE_VERSION_NAME (the tag, e.g. v0.1.0, or dev-<n>). Only v-tag builds are
+        // offered in-app updates, so local and dev builds never are.
+        versionName = env("VIBE_VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "1.1.0-beta.8-vibe"
 
         buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
         buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "https://api.introdb.app/")}\"")
@@ -193,8 +195,9 @@ android {
         buildConfigField("String", "SENTRY_DSN", buildConfigString(sentryDsn))
 
         // In-app updater (GitHub Releases)
-        buildConfigField("String", "GITHUB_OWNER", "\"NuvioMedia\"")
-        buildConfigField("String", "GITHUB_REPO", "\"NuvioTV\"")
+        // Vibe fork: our own releases (vibe-nuvio-<abi>.apk); upstream's are signed with another key.
+        buildConfigField("String", "GITHUB_OWNER", "\"DSparks156x\"")
+        buildConfigField("String", "GITHUB_REPO", "\"vibe-tv\"")
     }
 
     flavorDimensions += "distribution"
