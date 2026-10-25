@@ -66,6 +66,11 @@ fun ActionMenu(title: String, subtitle: String?, actions: List<MenuAction>, onDi
             Modifier
                 .onPreviewKeyEvent { ev ->
                     val select = ev.key == Key.DirectionCenter || ev.key == Key.Enter || ev.key == Key.NumPadEnter
+                    // Anything but Up/Down/OK closes the menu; volume keys keep working.
+                    if (!select && ev.key != Key.DirectionUp && ev.key != Key.DirectionDown && ev.key !in passThrough) {
+                        if (ev.type == KeyEventType.KeyDown) onDismiss()
+                        return@onPreviewKeyEvent true
+                    }
                     if (!select || armed) return@onPreviewKeyEvent false
                     if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) {
                         armed = true
@@ -120,6 +125,8 @@ fun ActionMenu(title: String, subtitle: String?, actions: List<MenuAction>, onDi
     }
     LaunchedEffect(actions.size) { runCatching { first.requestFocus() } }
 }
+
+private val passThrough = setOf(Key.VolumeUp, Key.VolumeDown, Key.VolumeMute)
 
 /**
  * Remembers the last focused card per row, so coming back to a row lands where you left it
