@@ -10,6 +10,8 @@
     <uses-permission android:name="com.vibe.permission.LAUNCHER_DATA" />
     <!-- Voice assistant (voice/*). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Self-updates from GitHub releases (data/Updater.kt). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -115,5 +117,13 @@
             </intent-filter>
             <meta-data android:name="android.speech" android:resource="@xml/recognition_service" />
         </service>
+
+        <receiver
+            android:name=".data.Updater$StatusReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.vibe.tvlauncher.UPDATE_STATUS" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

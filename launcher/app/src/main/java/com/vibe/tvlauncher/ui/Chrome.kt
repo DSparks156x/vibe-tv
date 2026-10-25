@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -146,6 +147,8 @@ fun TopBar(
     onSearch: () -> Unit,
     onAccount: () -> Unit,
     onSettings: () -> Unit,
+    /** Shown as an "Update" chip when a newer launcher release exists. */
+    onUpdate: (() -> Unit)?,
     tabFocus: Map<Tab, FocusRequester>,
     onDown: () -> Unit,
 ) {
@@ -180,6 +183,10 @@ fun TopBar(
             PillIcon(Icons.Filled.Search, "Search", onSearch)
             PillIcon(Icons.Filled.Settings, "Settings", onSettings)
         }
+        if (onUpdate != null) {
+            Spacer(Modifier.width(10.dp))
+            Pill { UpdateChip(onUpdate) }
+        }
         Spacer(Modifier.weight(1f))
         Clock()
         if (weather != null) {
@@ -193,6 +200,26 @@ fun TopBar(
             WeatherIcon(weather, Modifier.size(20.dp))
             Spacer(Modifier.width(6.dp))
             Text("${weather.temp}°", color = Color.White.copy(alpha = 0.9f), fontSize = 17.sp)
+        }
+    }
+}
+
+@Composable
+private fun UpdateChip(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.height(32.dp),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(50)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            contentColor = Color.White.copy(alpha = 0.85f),
+            focusedContainerColor = Color.White,
+            focusedContentColor = Color(0xFF202124),
+        ),
+    ) {
+        Box(Modifier.fillMaxHeight().padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
+            Text("Update", fontSize = 14.sp)
         }
     }
 }
