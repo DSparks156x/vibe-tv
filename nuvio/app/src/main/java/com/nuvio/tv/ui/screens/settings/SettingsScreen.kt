@@ -385,6 +385,18 @@ fun SettingsScreen(
         }
     }
 
+    // Vibe fork: a deep link (nuvio://account) opens a category with its options focused.
+    val deepLinkCategory by SettingsDeepLinkCategory.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(deepLinkCategory, visibleSections) {
+        val category = deepLinkCategory ?: return@LaunchedEffect
+        SettingsDeepLinkCategory.pending.value = null
+        if (visibleSections.none { it.category == category }) return@LaunchedEffect
+        allowDetailAutofocus = true
+        selectedCategory = category
+        pendingContentFocusCategory = category
+        pendingContentFocusRequestId += 1L
+    }
+
     LaunchedEffect(pendingContentFocusRequestId) {
         val category = pendingContentFocusCategory ?: return@LaunchedEffect
         delay(SETTINGS_DETAIL_FOCUS_DELAY_MS)

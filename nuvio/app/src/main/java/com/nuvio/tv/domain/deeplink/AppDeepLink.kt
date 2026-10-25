@@ -22,4 +22,7 @@ sealed interface AppDeepLink {
     data class Search(
         val query: String?
     ) : AppDeepLink
+
+    /** Vibe fork: nuvio://account opens sign-in when there is something to sign into, else Settings › Account. */
+    data object Account : AppDeepLink
 }

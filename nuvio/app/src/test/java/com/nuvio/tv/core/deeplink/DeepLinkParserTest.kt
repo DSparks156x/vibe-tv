@@ -22,6 +22,12 @@ class DeepLinkParserTest {
     }
 
     @Test
+    fun parsesAccountDeepLink() {
+        assertEquals(AppDeepLink.Account, DeepLinkParser.parse("nuvio://account"))
+        assertEquals(AppDeepLink.Account, DeepLinkParser.parse("nuvio://account/"))
+    }
+
+    @Test
     fun parsesAddonInstallDeepLink() {
         assertEquals(
             AppDeepLink.AddonInstall("https://free.nebulapro.xyz/sports/i/free/manifest.json"),

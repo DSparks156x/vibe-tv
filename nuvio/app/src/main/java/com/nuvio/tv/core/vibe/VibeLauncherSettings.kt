@@ -154,7 +154,8 @@ class VibeLauncherSettings(
     /**
      * The backend is read when Nuvio's network clients are built, so restart the process. If Nuvio
      * is in the background just end it (it starts again on next use) so nothing pops over the
-     * launcher; if it is on screen, use Nuvio's own restart.
+     * launcher; if it is on screen (usually because the launcher just fired `nuvio://account`
+     * after the change), restart straight into that link so the user lands on sign-in.
      */
     private fun scheduleRestart() {
         Handler(Looper.getMainLooper()).postDelayed({
@@ -162,7 +163,7 @@ class VibeLauncherSettings(
             ActivityManager.getMyMemoryState(info)
             Log.i(TAG, "Restarting after settings change (importance=${info.importance})")
             if (info.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE) {
-                appRestarter.restart()
+                appRestarter.restart(Uri.parse(ACCOUNT_DEEP_LINK))
             } else {
                 Process.killProcess(Process.myPid())
             }
@@ -176,5 +177,6 @@ class VibeLauncherSettings(
         const val KEY_ACCOUNT_MODE = "account_mode"
         private const val TAG = "VibeLauncherSettings"
         private const val RESTART_DELAY_MS = 1_000L
+        private const val ACCOUNT_DEEP_LINK = "nuvio://account"
     }
 }

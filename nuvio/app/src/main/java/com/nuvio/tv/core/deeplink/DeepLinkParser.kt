@@ -43,6 +43,7 @@ object DeepLinkParser {
                 firstParameter(queryParameters(parsedUrl), "q", "query")
                     ?: pathSegments.firstOrNull()
             )
+            "account" -> AppDeepLink.Account
             "auth" -> null
             else -> {
                 if (looksLikeAddonHost(host)) {

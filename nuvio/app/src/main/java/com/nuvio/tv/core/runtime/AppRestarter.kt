@@ -3,6 +3,7 @@ package com.nuvio.tv.core.runtime
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
+import android.net.Uri
 import android.os.Process
 import android.os.SystemClock
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -14,9 +15,14 @@ import kotlin.system.exitProcess
 class AppRestarter @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
-    fun restart(): Boolean {
+    /** [data]: optional deep link the restarted app opens (e.g. `nuvio://account`). */
+    fun restart(data: Uri? = null): Boolean {
         val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
             ?: return false
+        if (data != null) {
+            launchIntent.action = android.content.Intent.ACTION_VIEW
+            launchIntent.data = data
+        }
         launchIntent.addFlags(
             android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
                 android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK

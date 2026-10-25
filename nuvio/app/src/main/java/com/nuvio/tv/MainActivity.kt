@@ -174,6 +174,8 @@ import com.nuvio.tv.domain.model.resolveAppTheme
 import com.nuvio.tv.domain.model.resolveCustomThemeColors
 import com.nuvio.tv.domain.deeplink.AppDeepLink
 import com.nuvio.tv.ui.screens.search.SearchDeepLinkQuery
+import com.nuvio.tv.ui.screens.settings.SettingsCategory
+import com.nuvio.tv.ui.screens.settings.SettingsDeepLinkCategory
 import com.nuvio.tv.domain.repository.AddonRepository
 import com.nuvio.tv.ui.components.NuvioScrollDefaults
 import com.nuvio.tv.ui.components.BrandWordmark
@@ -1014,7 +1016,7 @@ open class MainActivity : ComponentActivity() {
                         externalParentId = navController.previousBackStackEntry?.id
                     }
 
-                    LaunchedEffect(navController, layoutChosen, pendingDeepLink) {
+                    LaunchedEffect(navController, layoutChosen, pendingDeepLink, authState is AuthState.Loading) {
                         val url = pendingDeepLink ?: return@LaunchedEffect
                         if (!layoutChosen) return@LaunchedEffect
                         when (val deepLink = DeepLinkParser.parse(url)) {
@@ -1041,6 +1043,24 @@ open class MainActivity : ComponentActivity() {
                                 SearchDeepLinkQuery.pending.value = deepLink.query
                                 navController.navigate(Screen.Search.route) {
                                     launchSingleTop = true
+                                }
+                                externalParentId = navController.previousBackStackEntry?.id
+                            }
+                            is AppDeepLink.Account -> {
+                                // Wait for the stored session, or a signed-in user lands on sign-in.
+                                if (authState is AuthState.Loading) return@LaunchedEffect
+                                pendingDeepLinkUrl.value = null
+                                val canSignIn = activeServerConfiguration.capabilities.tvLogin ||
+                                    activeServerConfiguration.capabilities.emailPasswordAuth
+                                if (canSignIn && authState !is AuthState.FullAccount) {
+                                    navController.navigate(Screen.AuthQrSignIn.route) {
+                                        launchSingleTop = true
+                                    }
+                                } else {
+                                    SettingsDeepLinkCategory.pending.value = SettingsCategory.ACCOUNT
+                                    navController.navigate(Screen.Settings.route) {
+                                        launchSingleTop = true
+                                    }
                                 }
                                 externalParentId = navController.previousBackStackEntry?.id
                             }
@@ -1362,7 +1382,7 @@ open class MainActivity : ComponentActivity() {
         if (intent.getStringExtra("contentId") != null) return true
         val url = intent.dataString?.takeIf(String::isNotBlank) ?: return false
         val deepLink = DeepLinkParser.parse(url)
-        return deepLink is AppDeepLink.Meta || deepLink is AppDeepLink.Search
+        return deepLink is AppDeepLink.Meta || deepLink is AppDeepLink.Search || deepLink is AppDeepLink.Account
     }
 
     private fun captureDeepLinkIntent(intent: Intent?) {
