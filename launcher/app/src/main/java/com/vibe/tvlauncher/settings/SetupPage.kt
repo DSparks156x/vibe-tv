@@ -41,6 +41,13 @@ object SetupPage {
             append("</section>")
         }
         append("<button type=submit>Save</button></form>")
+        // Show only the fields that apply (e.g. the chosen model provider's key); without JS everything shows.
+        append(
+            "<script>function sync(){document.querySelectorAll('[data-when]').forEach(function(e){" +
+                "var s=document.querySelector('[name=\"'+e.dataset.when+'\"]');" +
+                "e.hidden=!!s&&e.dataset.vals.split(',').indexOf(s.value)<0})}" +
+                "document.addEventListener('change',sync);sync()</script>",
+        )
         if (fields.none { it.key.startsWith(SettingsRegistry.NUVIO_PREFIX) }) {
             append("<p class=sub>Nuvio settings appear here when the Vibe Nuvio app is installed.</p>")
         }
@@ -49,7 +56,11 @@ object SetupPage {
 
     private fun StringBuilder.field(f: Field, error: String?, touched: Boolean) {
         val id = esc(f.key)
-        append("<label class=field><span class=label>").append(esc(f.label)).append("</span>")
+        append("<label class=field")
+        f.showWhen?.let { (k, vals) ->
+            append(" data-when='").append(esc(k)).append("' data-vals='").append(esc(vals.joinToString(","))).append("'")
+        }
+        append("><span class=label>").append(esc(f.label)).append("</span>")
         when (f.type) {
             FieldType.Choice, FieldType.Toggle -> {
                 val choices = if (f.type == FieldType.Toggle) listOf("true" to "On", "false" to "Off") else f.choices
@@ -100,7 +111,7 @@ object SetupPage {
         h2{font-size:15px;font-weight:500;color:#8ab4f8;margin:0 0 12px;text-transform:uppercase;letter-spacing:.06em}
         .sub{color:#9aa0a6;margin:0 0 20px}
         section{background:#1e2025;border-radius:14px;padding:18px 16px 6px;margin:0 0 16px}
-        .field{display:block;margin:0 0 16px}
+        .field{display:block;margin:0 0 16px}.field[hidden]{display:none}
         .label{display:block;margin:0 0 6px}
         input[type=text],input[type=password],select{box-sizing:border-box;width:100%;padding:11px 12px;border-radius:10px;
           border:1px solid #3c4043;background:#101114;color:#e8eaed;font:inherit}

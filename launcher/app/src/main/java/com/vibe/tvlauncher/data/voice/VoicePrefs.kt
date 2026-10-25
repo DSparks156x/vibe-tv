@@ -21,7 +21,7 @@ object VoicePrefs {
     private const val PREFS = "voice"
 
     val PROVIDERS = listOf(
-        Provider("off", "Off (offline rules only)", "", emptyList(), needsKey = false),
+        Provider("off", "Off (offline commands only)", "", emptyList(), needsKey = false),
         Provider(
             "groq", "Groq", "https://api.groq.com/openai/v1",
             // Fastest good fits measured on a TV (Oct 2026): ~0.5 s per request.
@@ -34,7 +34,7 @@ object VoicePrefs {
             keyHint = "aistudio.google.com/apikey",
         ),
         Provider(
-            "custom", "Custom (OpenAI-compatible URL)", "", emptyList(), needsKey = false,
+            "custom", "Custom server", "", emptyList(), needsKey = false,
             keyHint = "e.g. http://192.168.1.10:11434/v1 for Ollama",
         ),
     )

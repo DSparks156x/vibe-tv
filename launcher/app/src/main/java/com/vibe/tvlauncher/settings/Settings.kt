@@ -20,7 +20,17 @@ data class Field(
     val choices: List<Pair<String, String>> = emptyList(),
     /** Current value. Secrets report "set" or "" and are never read back. */
     val value: String = "",
+    /** Only shown while the setting [showWhen].first has one of the values in [showWhen].second. */
+    val showWhen: Pair<String, Set<String>>? = null,
+    /** What an empty value means, e.g. "Default" when the build has one. */
+    val emptyLabel: String = "Not set",
 )
+
+/** Drops fields whose [Field.showWhen] condition doesn't hold for the current values. */
+fun List<Field>.visible(): List<Field> {
+    val values = associate { it.key to it.value }
+    return filter { f -> f.showWhen?.let { (k, allowed) -> values[k] in allowed } ?: true }
+}
 
 /** Launcher-wide preferences that aren't the assistant's (those live in [VoicePrefs]). */
 object LauncherPrefs {
@@ -64,28 +74,32 @@ object SettingsRegistry {
                 FieldType.Choice, VoicePrefs.PROVIDERS.map { it.id to it.label }, provider.id,
             ),
         )
+        // Only the picked provider's fields show; keys are still kept per provider.
         VoicePrefs.PROVIDERS.filter { it.id != "off" }.forEach { p ->
+            val only = "assistant.provider" to setOf(p.id)
             if (p.id == "custom") {
                 add(
                     Field(
-                        "assistant.custom_url", "Assistant", "Custom server URL",
-                        "Any OpenAI-compatible endpoint, ${p.keyHint}", FieldType.Text, value = VoicePrefs.customUrl(c).orEmpty(),
+                        "assistant.custom_url", "Assistant", "Server URL",
+                        "Any OpenAI-compatible endpoint, ${p.keyHint}", FieldType.Text,
+                        value = VoicePrefs.customUrl(c).orEmpty(), showWhen = only,
                     ),
                 )
             }
             add(
                 Field(
-                    "assistant.key.${p.id}", "Assistant", "${p.label.substringBefore(" (")} API key",
+                    "assistant.key.${p.id}", "Assistant", if (p.needsKey) "API key" else "API key (optional)",
                     if (p.needsKey) "Get one at ${p.keyHint}" else "Only if your server needs one",
-                    FieldType.Secret, value = if (VoicePrefs.apiKey(c, p) != null) "set" else "",
+                    FieldType.Secret, value = if (VoicePrefs.apiKey(c, p) != null) "set" else "", showWhen = only,
                 ),
             )
         }
         add(
             Field(
                 "assistant.model", "Assistant", "Model",
-                "Leave empty to pick the provider's best fast model automatically.",
+                "Empty = pick the provider's best fast model automatically.",
                 FieldType.Text, value = VoicePrefs.model(c, provider).orEmpty(),
+                showWhen = "assistant.provider" to VoicePrefs.PROVIDERS.filter { it.id != "off" }.map { it.id }.toSet(),
             ),
         )
 
@@ -140,6 +154,7 @@ object SettingsRegistry {
                 else -> FieldType.Text
             },
             value = s.value,
+            emptyLabel = "Default",
         )
     }
 

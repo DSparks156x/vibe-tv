@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -34,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -50,9 +52,11 @@ import androidx.tv.material3.Text
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import com.vibe.tvlauncher.ui.ActionMenu
 import com.vibe.tvlauncher.ui.Bg
 import com.vibe.tvlauncher.ui.CardBg
 import com.vibe.tvlauncher.ui.LauncherTheme
+import com.vibe.tvlauncher.ui.MenuAction
 import com.vibe.tvlauncher.ui.PadH
 import com.vibe.tvlauncher.ui.PillButton
 import com.vibe.tvlauncher.ui.TextSecondary
@@ -99,6 +103,9 @@ private fun SettingsScreen(version: Int, setupUrl: String?) {
     var fields by remember { mutableStateOf<List<Field>?>(null) }
     var localVersion by remember { mutableIntStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
+    /** The text setting being typed into; the keyboard only opens for this one. */
+    var editing by remember { mutableStateOf<String?>(null) }
+    var picking by remember { mutableStateOf<Field?>(null) }
     val firstFocus = remember { FocusRequester() }
 
     LaunchedEffect(version, localVersion) {
@@ -114,6 +121,13 @@ private fun SettingsScreen(version: Int, setupUrl: String?) {
         }
     }
 
+    picking?.let { f ->
+        ActionMenu(
+            f.label, null,
+            f.choices.map { (id, label) -> MenuAction(if (id == f.value) "$label  ✓" else label) { save(f.key, id) } },
+        ) { picking = null }
+    }
+
     Row(Modifier.fillMaxSize().background(Bg).padding(start = PadH, end = PadH, top = 40.dp)) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -126,11 +140,13 @@ private fun SettingsScreen(version: Int, setupUrl: String?) {
                 )
             }
             message?.let { Text(it, color = Color(0xFFF28B82), fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
-            val list = fields
+            Spacer(Modifier.height(12.dp))
+            val list = fields?.visible()
             if (list == null) {
                 Text("Loading…", color = TextSecondary, fontSize = 14.sp, modifier = Modifier.padding(top = 20.dp))
             } else {
                 LazyColumn(
+                    modifier = Modifier.clipToBounds(),
                     contentPadding = PaddingValues(top = 16.dp, bottom = 60.dp, end = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -141,7 +157,16 @@ private fun SettingsScreen(version: Int, setupUrl: String?) {
                                 modifier = Modifier.padding(top = 14.dp, bottom = 2.dp),
                             )
                         }
-                        items(group, key = { it.key }) { f -> FieldRow(f, ::save) }
+                        items(group, key = { it.key }) { f ->
+                            FieldRow(
+                                f,
+                                editing = editing == f.key,
+                                onEdit = { editing = f.key },
+                                onEditDone = { if (editing == f.key) editing = null },
+                                onPick = { picking = f },
+                                save = ::save,
+                            )
+                        }
                     }
                 }
             }
@@ -151,44 +176,72 @@ private fun SettingsScreen(version: Int, setupUrl: String?) {
 }
 
 @Composable
-private fun FieldRow(f: Field, save: (String, String) -> Unit) {
+private fun FieldRow(
+    f: Field,
+    editing: Boolean,
+    onEdit: () -> Unit,
+    onEditDone: () -> Unit,
+    onPick: () -> Unit,
+    save: (String, String) -> Unit,
+) {
+    val rowFocus = remember { FocusRequester() }
+    var wasEditing by remember { mutableStateOf(false) }
+    // Put focus back on the row after typing, so the D-pad continues from here.
+    LaunchedEffect(editing) {
+        if (wasEditing && !editing) runCatching { rowFocus.requestFocus() }
+        wasEditing = editing
+    }
     Column(Modifier.fillMaxWidth()) {
-        when (f.type) {
-            FieldType.Choice, FieldType.Toggle -> {
-                val choices = if (f.type == FieldType.Toggle) listOf("true" to "On", "false" to "Off") else f.choices
-                val current = choices.indexOfFirst { it.first == f.value }.coerceAtLeast(0)
-                ValueRow(f.label, choices.getOrNull(current)?.second ?: f.value) {
-                    save(f.key, choices[(current + 1) % choices.size].first)
-                }
+        if (editing && (f.type == FieldType.Text || f.type == FieldType.Secret)) {
+            EditBox(f, onEditDone, save)
+        } else {
+            val shown = when (f.type) {
+                FieldType.Toggle -> if (f.value == "true") "On" else "Off"
+                FieldType.Choice -> f.choices.firstOrNull { it.first == f.value }?.second ?: f.value
+                FieldType.Secret -> if (f.value.isNotEmpty()) "Saved" else "Not set"
+                FieldType.Text -> f.value.ifEmpty { f.emptyLabel }
             }
-            FieldType.Secret -> {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(f.label, color = Color.White, fontSize = 15.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Text(if (f.value.isNotEmpty()) "Saved" else "Not set", color = TextSecondary, fontSize = 13.sp)
-                    if (f.value.isNotEmpty()) {
-                        Spacer(Modifier.width(12.dp))
-                        PillButton("Remove") { save(f.key, SettingsRegistry.CLEAR) }
-                    }
+            ValueRow(f.label, shown, Modifier.focusRequester(rowFocus)) {
+                when (f.type) {
+                    FieldType.Toggle -> save(f.key, (f.value != "true").toString())
+                    FieldType.Choice -> onPick()
+                    else -> onEdit()
                 }
-                Spacer(Modifier.height(6.dp))
-                TvTextField(hint = "Type or paste, then Done", secret = true) { save(f.key, it) }
-            }
-            FieldType.Text -> {
-                Text(f.label, color = Color.White, fontSize = 15.sp)
-                Spacer(Modifier.height(6.dp))
-                TvTextField(hint = "Empty", secret = false, initial = f.value) { if (it != f.value) save(f.key, it) }
             }
         }
         if (f.help.isNotEmpty()) Text(f.help, color = TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
+/** Inline editor for a text or secret setting: focused (keyboard up) right away; Done saves, Back cancels. */
 @Composable
-private fun ValueRow(label: String, value: String, onClick: () -> Unit) {
+private fun EditBox(f: Field, onDone: () -> Unit, save: (String, String) -> Unit) {
+    val focus = remember { FocusRequester() }
+    val secret = f.type == FieldType.Secret
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    BackHandler { onDone() }
+    Text(f.label, color = Color.White, fontSize = 15.sp)
+    Spacer(Modifier.height(6.dp))
+    TvTextField(
+        hint = if (secret) "Type or paste the key, then Done" else "Type, then Done",
+        secret = secret,
+        modifier = Modifier.focusRequester(focus),
+        initial = if (secret) "" else f.value,
+    ) {
+        if (it != f.value) save(f.key, it)
+        onDone()
+    }
+    if (secret && f.value.isNotEmpty()) {
+        Spacer(Modifier.height(8.dp))
+        PillButton("Remove saved key") { save(f.key, SettingsRegistry.CLEAR); onDone() }
+    }
+}
+
+@Composable
+private fun ValueRow(label: String, value: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.01f),
         colors = ClickableSurfaceDefaults.colors(
