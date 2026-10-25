@@ -1,7 +1,11 @@
 # Setup
 
 ## Requirements
-- Android SDK (compileSdk 36, build-tools 36.1.0), JDK 17, `adb`.
+- JDK 17+ (Android Studio's bundled JBR works) and `adb`.
+- Android SDK Platform 36 and build-tools 36.1.0. Accept the SDK licenses once so Gradle can download what it needs.
+- For Nuvio's Dolby Vision converter: NDK 29.0.14206865 (SDK Manager > "NDK (Side by side)").
+  AGP fetches CMake 3.22.1 itself. Skip both with `DOVI_NATIVE_ENABLED=false` in `nuvio/local.properties`;
+  profile 7 files then play their HDR10 base layer.
 - An Android TV / Google TV device on Android 9 or newer with **Wireless debugging** (or USB debugging) on.
 
 ## 1. Signing key (shared by both apps)
@@ -36,9 +40,10 @@ NUVIO_RELEASE_KEY_ALIAS=vibe
 NUVIO_RELEASE_KEY_PASSWORD=...
 ```
 Copy the rest of `nuvio/local.example.properties` as needed. Useful ones:
-- `VIBE_ABIS=armeabi-v7a`: build only the 32-bit ABI most TVs use (smaller APK, faster build).
-- Dolby Vision profile 7 → 8.1 conversion is on by default, using the libdovi prebuilts in `nuvio/DV7/`.
-  It needs the Android NDK; AGP installs CMake itself. Set `DOVI_NATIVE_ENABLED=false` to skip it.
+- `VIBE_ABIS=armeabi-v7a`: build only the 32-bit ABI most TVs use. Unset, it builds every ABI plus a
+  universal APK.
+- Dolby Vision profile 7 → 8.1 conversion is on by default, using the libdovi prebuilts in `nuvio/DV7/`
+  (see Requirements).
 
 Never commit `local.properties`, `signing.properties` or keystores. `.gitignore` already excludes them.
 
