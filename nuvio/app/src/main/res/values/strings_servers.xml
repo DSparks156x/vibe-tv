@@ -1,10 +1,11 @@
 <resources>
     <string name="settings_media_servers">Media servers</string>
-    <string name="settings_media_servers_subtitle">Connect Jellyfin or Emby to browse and play your own library.</string>
+    <string name="settings_media_servers_subtitle">Connect Jellyfin, Emby or Plex to browse and play your own library.</string>
     <string name="servers_section_connected">Servers</string>
     <string name="servers_section_add">Add server</string>
     <string name="servers_empty">No servers connected yet.</string>
     <string name="servers_add_description">Sign in with your server address and %1$s user.</string>
+    <string name="vibe_servers_add_account_description" translatable="false">Sign in with your %1$s account.</string>
     <string name="servers_sign_in_title">Sign in to %1$s</string>
     <string name="servers_sign_in_subtitle">Enter your server address and the %1$s user to sign in with. Your password is only used to sign in.</string>
     <string name="servers_address">Server address</string>

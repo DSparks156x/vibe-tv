@@ -31,6 +31,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
+import com.nuvio.tv.data.mediaserver.PinSignInProvider
 import com.nuvio.tv.data.mediaserver.ServerConnection
 import com.nuvio.tv.data.mediaserver.ServerFailure
 import com.nuvio.tv.ui.theme.NuvioTheme
@@ -91,7 +92,11 @@ internal fun MediaServersSettingsContent(
                     items(viewModel.providers, key = { "provider_${it.id}" }) { provider ->
                         SettingsActionRow(
                             title = provider.displayName,
-                            subtitle = stringResource(R.string.servers_add_description, provider.displayName),
+                            subtitle = stringResource(
+                                // Vibe fork: Plex signs in with a plex.tv code, not an address and user.
+                                if (provider is PinSignInProvider) R.string.vibe_servers_add_account_description else R.string.servers_add_description,
+                                provider.displayName
+                            ),
                             onClick = { signIn = ServerSignInRequest(provider) },
                             leadingRawIconRes = serverLogoRes(provider.id),
                             modifier = if (connections.isEmpty() && provider == viewModel.providers.first()) focusModifier else Modifier

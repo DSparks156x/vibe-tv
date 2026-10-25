@@ -2258,6 +2258,14 @@
     <string name="official_server_description">You will be signed out of the custom server and the app will restart with the official service.</string>
     <string name="official_server_action">Use official server</string>
     <string name="custom_server_error_invalid_url">Enter a valid HTTP or HTTPS Backend URL.</string>
+    <string name="vibe_servers_pin_subtitle" translatable="false">Scan the code, or open the link on your phone or computer and enter the code.</string>
+    <string name="vibe_servers_pin_instructions" translatable="false">Go to %1$s and enter</string>
+    <string name="vibe_servers_pin_waiting" translatable="false">Waiting for approval…</string>
+    <string name="vibe_servers_pin_expired" translatable="false">The code expired.</string>
+    <string name="vibe_servers_pin_new_code" translatable="false">New code</string>
+    <string name="vibe_servers_pin_choose" translatable="false">Choose a server</string>
+    <string name="vibe_servers_pin_shared" translatable="false">%1$s (shared with you)</string>
+    <string name="vibe_servers_pin_no_servers" translatable="false">This account has no servers this TV can reach.</string>
     <string name="vibe_account_build_server_active" translatable="false">That server is already selected.</string>
     <string name="custom_server_error_official_active">api.nuvio.tv is the official server and is already selected.</string>
     <string name="custom_server_error_official_available">api.nuvio.tv is the official server. Close this dialog and choose Use official server to switch back.</string>

@@ -112,7 +112,21 @@ class ServerRepository(
         ensureLoaded()
         val startedGeneration = generation
         val profileId = loadedProfileId ?: activeProfileId
-        val signIn = provider.signIn(address, username, password)
+        return connect(provider, provider.signIn(address, username, password), startedGeneration, profileId)
+    }
+
+    /** Vibe fork: stores a sign-in made another way (e.g. [PinSignInProvider]). */
+    suspend fun connect(provider: ServerProvider, signIn: ServerSignIn): ServerConnection {
+        ensureLoaded()
+        return connect(provider, signIn, generation, loadedProfileId ?: activeProfileId)
+    }
+
+    private suspend fun connect(
+        provider: ServerProvider,
+        signIn: ServerSignIn,
+        startedGeneration: Long,
+        profileId: Int
+    ): ServerConnection {
         val existing = mutableState.value.connections.firstOrNull {
             it.providerId == provider.id &&
                 it.remoteServerId == signIn.serverId &&

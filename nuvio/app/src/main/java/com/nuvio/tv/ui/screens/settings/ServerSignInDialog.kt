@@ -21,6 +21,7 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
+import com.nuvio.tv.data.mediaserver.PinSignInProvider
 import com.nuvio.tv.data.mediaserver.ServerConnection
 import com.nuvio.tv.data.mediaserver.ServerFailure
 import com.nuvio.tv.data.mediaserver.ServerProvider
@@ -41,6 +42,10 @@ internal fun ServerSignInDialog(
     onConnected: (ServerConnection) -> Unit,
     onDismiss: () -> Unit
 ) {
+    if (request.provider is PinSignInProvider) {
+        ServerPinSignInDialog(request.provider, viewModel, onConnected, onDismiss)
+        return
+    }
     val state by viewModel.signIn.collectAsStateWithLifecycle()
     var address by remember { mutableStateOf(request.address) }
     var username by remember { mutableStateOf(request.username) }

@@ -78,6 +78,41 @@ interface ServerProvider {
     ): ServerEpisode? = unsupported()
 }
 
+/**
+ * Vibe fork: providers that sign in through a code the user approves elsewhere (Plex's plex.tv/link)
+ * instead of a username and password. The sign-in dialog drives these steps.
+ */
+interface PinSignInProvider {
+    suspend fun createPin(): ServerPin
+
+    /** The account token once [pin] is approved, null while it is still waiting. */
+    suspend fun pollPin(pin: ServerPin): String?
+
+    /** Servers the account can use. */
+    suspend fun servers(accountToken: String): List<ServerChoice>
+
+    /** Signs in to [server], picking a connection that answers (local first). */
+    suspend fun signIn(accountToken: String, server: ServerChoice): ServerSignIn
+}
+
+class ServerPin(
+    val id: String,
+    val code: String,
+    /** Page where the code is typed, shown as text. */
+    val linkUrl: String,
+    /** Page that approves this code directly, for the QR code. */
+    val approveUrl: String,
+    val expiresAtEpochMs: Long?
+) {
+    override fun toString(): String = "ServerPin(id=$id)"
+}
+
+data class ServerChoice(
+    val id: String,
+    val name: String,
+    val owned: Boolean
+)
+
 data class ServerIndexEntry(
     val itemId: String,
     val ids: TrackingExternalIds,
