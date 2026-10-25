@@ -1,9 +1,17 @@
 # Vibe TV
 
-An ad-free, Google TV–style home screen for Android TV, built around your own sources instead of
-the stock launcher's sponsored rows.
+Google TV looks great, but its an ad riddled piece of shit now and expects your content to come from bougee premium name brand streaming services. And even worse - It uses Gemini as a mediocre voice search assistant thing. Google strikes again. 
 
-This repository is a monorepo with two Android apps that work together:
+That's where VibeTV comes in. The familiar nice looking launcher with content recommendations etc etc, but powered by whatever less legitimate content sources you want through Nuvio. I know what you are. 
+
+Anyways this repo has 2.5 components - A launcher replacement,  an assistant replacement (part of the  launcher) and a nuvio fork. 
+
+The launcher looks like google tv, but sources its content/continue watching/etc etc from nuvio. glorious integration. And you still have apps. Thats about all it has. Its a TV launcher, you click shows and movies to burn your life away watching, and this streamlines that process.
+
+The assistant is intended to power voice search and feed your requests cleanly into Nuvio. it has basic commands like "play (show)" etc, and falls back to asking a chinese LLM if your request doesnt fall into its basic commands. Sweet, sweet natural language processing is here. Its basically AGI. 
+
+The nuvio fork - slightly restyled to match the launcher and a couple other features for better integration.  Does not support signing into an actual nuvio server account, you must selfhost, and build pointed at your selfhost. or just don't use an account.  Luckily, im sure you have a NAS you can go toss another docker image and forget about it. 
+
 
 | Folder | App | What it is |
 |---|---|---|
