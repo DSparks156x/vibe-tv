@@ -49,7 +49,7 @@ class LiveContinueWatchingBuilder(
 
         val rows = latestPerTitle.mapNotNull { p ->
             when {
-                p.isInProgress() -> {
+                isStartedNotFinished(p) -> {
                     val cached = inProgressCache.firstOrNull {
                         it.contentId == p.contentId && it.season == p.season && it.episode == p.episode
                     }
@@ -144,6 +144,16 @@ class LiveContinueWatchingBuilder(
 
     companion object {
         private const val DAY_MS = 24L * 60L * 60L * 1000L
+
+        /** Same rule as Nuvio's home (shouldTreatAsInProgressForContinueWatching): any started playback counts. */
+        fun isStartedNotFinished(p: WatchProgress): Boolean {
+            if (p.isCompleted()) return false
+            if (p.isInProgress()) return true
+            val started = p.position > 0L || p.progressPercent?.let { it > 0f } == true
+            return started &&
+                p.source != WatchProgress.SOURCE_TRAKT_HISTORY &&
+                p.source != WatchProgress.SOURCE_TRAKT_SHOW_PROGRESS
+        }
 
         /** Nuvio's home dismisses by content id; the older channel code used "id_sXeY". Accept both. */
         fun isDismissed(contentId: String, seedSeason: Int?, seedEpisode: Int?, dismissed: Set<String>): Boolean {

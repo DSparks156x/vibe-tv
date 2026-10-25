@@ -96,6 +96,13 @@ class LiveContinueWatchingBuilderTest {
     }
 
     @Test
+    fun barelyStartedMovieStillShows() {
+        // 2 min of a 165 min film is ~1.2%, under isInProgress()'s 2%, but Nuvio's home shows it.
+        val rows = build(listOf(progress("tt-film", "movie", null, null, 120_000, 9_900_000, now - 1_000)))
+        assertEquals(LauncherCwEntry.KIND_IN_PROGRESS, rows.single().kind)
+    }
+
+    @Test
     fun noNextEpisodeMeansNoRow() {
         assertTrue(build(listOf(progress("tt-ended", "series", 3, 10, 1_000, 1_000, now - 1_000))).isEmpty())
     }
