@@ -61,6 +61,8 @@ class VibeLauncherProvider : ContentProvider() {
         fun serverConfigurationStore(): com.nuvio.tv.data.local.ServerConfigurationStore
         fun serverDiscoveryService(): com.nuvio.tv.data.remote.ServerDiscoveryService
         fun appRestarter(): com.nuvio.tv.core.runtime.AppRestarter
+        fun prefetcher(): VibePrefetcher
+        fun playerSettingsDataStore(): com.nuvio.tv.data.local.PlayerSettingsDataStore
     }
 
     private val matcher = UriMatcher(UriMatcher.NO_MATCH)
@@ -223,7 +225,8 @@ class VibeLauncherProvider : ContentProvider() {
             ep.serverConfigurationStore(),
             ep.serverDiscoveryService(),
             ep.authManager(),
-            ep.appRestarter()
+            ep.appRestarter(),
+            ep.playerSettingsDataStore()
         )
     }
 
@@ -232,7 +235,7 @@ class VibeLauncherProvider : ContentProvider() {
         context!!.enforceCallingPermission(PERMISSION, "Vibe launcher permission required")
         when (method) {
             VibeLauncherSettings.METHOD_GET -> return Bundle().apply {
-                putString("json", runCatching { settings().getSettingsJson() }
+                putString("json", runCatching { runBlocking { settings().getSettingsJson() } }
                     .getOrElse { Log.w(TAG, "get_settings failed", it); "{\"fields\":[]}" })
             }
             VibeLauncherSettings.METHOD_SET -> {
@@ -245,6 +248,13 @@ class VibeLauncherProvider : ContentProvider() {
             }
         }
         val args = extras?.let { bundle -> bundle.keySet().associateWith { key -> bundle.valueOf(key) } }.orEmpty()
+        if (method == VibeLauncherActions.PREFETCH) {
+            // Fire-and-forget: returns at once, changes nothing the launcher shows (no notifyRoot).
+            val request = VibeLauncherActions.parsePrefetch(args)
+                ?: return Bundle().apply { putBoolean("ok", false); putString("error", "bad prefetch extras") }
+            entryPoint().prefetcher().prefetch(request)
+            return Bundle().apply { putBoolean("ok", true) }
+        }
         val result = try {
             runBlocking {
                 withTimeoutOrNull(TIMEOUT_MS) { VibeLauncherActions(backend()).run(method, arg, args) }

@@ -1,5 +1,6 @@
 package com.nuvio.tv.data.repository
 
+import android.util.Log
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.domain.model.AddonStreams
 import kotlinx.coroutines.CancellationException
@@ -96,8 +97,13 @@ internal class StreamSearchSessionCache(
             if (forceRefresh) {
                 sessions.remove(key)?.cancelAndComplete()
             } else {
-                sessions[key]?.let { return@withLock it }
+                sessions[key]?.let { existing ->
+                    // Vibe fork: shows a launcher prefetch being reused by the Stream screen.
+                    Log.i(TAG, "reusing search ${key.type} ${key.videoId} complete=${existing.completedAtMs != null}")
+                    return@withLock existing
+                }
             }
+            Log.i(TAG, "new search ${key.type} ${key.videoId}")
 
             createSession(key, producer).also { session ->
                 sessions[key] = session
@@ -232,5 +238,6 @@ internal class StreamSearchSessionCache(
     private companion object {
         const val DEFAULT_COMPLETED_TTL_MS = 15 * 60 * 1_000L
         const val DEFAULT_MAX_ENTRIES = 12
+        const val TAG = "StreamSearch"
     }
 }

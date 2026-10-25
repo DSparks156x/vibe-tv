@@ -128,22 +128,63 @@ class VibeLauncherActions(private val backend: Backend) {
         return Result.OK
     }
 
-    private fun Map<String, Any?>.string(key: String): String? =
-        (get(key) as? String)?.trim()?.takeIf(String::isNotEmpty)
-
-    /** Accepts Int, Long or String values, since callers such as `adb shell content call` differ. */
-    private fun Map<String, Any?>.int(key: String): Int? = when (val v = get(key)) {
-        is Int -> v
-        is Long -> v.toInt()
-        is String -> v.trim().toIntOrNull()
-        else -> null
-    }
+    /** Vibe fork: what the launcher wants warmed up before the user presses play. */
+    data class PrefetchRequest(
+        val type: String,
+        val contentId: String,
+        val videoId: String,
+        val season: Int?,
+        val episode: Int?,
+        val resolve: Boolean
+    )
 
     companion object {
+        const val PREFETCH = "prefetch"
+
+        /**
+         * Extras: type ("movie"/"series"), id, video_id (as the resume intent sends it; defaults to id
+         * for movies), season/episode (series only), resolve (boolean).
+         */
+        fun parsePrefetch(args: Map<String, Any?>): PrefetchRequest? {
+            val type = args.string("type")?.lowercase()?.takeIf { it == "movie" || it == "series" } ?: return null
+            val id = args.string("id") ?: return null
+            val series = type == "series"
+            val season = if (series) args.int("season") else null
+            val episode = if (series) args.int("episode") else null
+            if (series && (season == null || episode == null)) return null
+            return PrefetchRequest(
+                type = type,
+                contentId = id,
+                videoId = args.string("video_id") ?: if (series) "$id:$season:$episode" else id,
+                season = season,
+                episode = episode,
+                resolve = args.bool("resolve")
+            )
+        }
+
+
         const val LIBRARY_CONTAINS = "library_contains"
         const val LIBRARY_TOGGLE = "library_toggle"
         const val MARK_WATCHED = "mark_watched"
         const val REMOVE_PROGRESS = "remove_progress"
         const val SET_PROFILE = "set_profile"
     }
+}
+
+private fun Map<String, Any?>.string(key: String): String? =
+    (get(key) as? String)?.trim()?.takeIf(String::isNotEmpty)
+
+/** Accepts Int, Long or String values, since callers such as `adb shell content call` differ. */
+private fun Map<String, Any?>.int(key: String): Int? = when (val v = get(key)) {
+    is Int -> v
+    is Long -> v.toInt()
+    is String -> v.trim().toIntOrNull()
+    else -> null
+}
+
+private fun Map<String, Any?>.bool(key: String): Boolean = when (val v = get(key)) {
+    is Boolean -> v
+    is String -> v.trim().equals("true", ignoreCase = true) || v.trim() == "1"
+    is Int -> v != 0
+    else -> false
 }

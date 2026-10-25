@@ -18,6 +18,9 @@ object PlayerSessionTracker {
 
     val isSessionOpen: Flow<Boolean> = openSessions.map { it > 0 }.distinctUntilChanged()
 
+    val isOpen: Boolean
+        get() = openSessions.value > 0
+
     fun open(): Session {
         openSessions.update { it + 1 }
         return Session()
