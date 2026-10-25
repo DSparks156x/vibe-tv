@@ -237,7 +237,11 @@ private fun ServerConnectionDialog(
     }
 
     var serverUrl by rememberSaveable {
-        mutableStateOf(uiState.activeServer.discoveryUrl?.substringBefore("/.well-known/nuvio").orEmpty())
+        // Vibe fork: only pre-fill a custom server; the official one's URL is no use here.
+        mutableStateOf(
+            uiState.activeServer.takeIf { it.isCustom }?.discoveryUrl
+                ?.substringBefore("/.well-known/nuvio").orEmpty()
+        )
     }
     val urlFocusRequester = remember { FocusRequester() }
     val canDiscover = serverUrl.isNotBlank() && !uiState.isDiscovering
