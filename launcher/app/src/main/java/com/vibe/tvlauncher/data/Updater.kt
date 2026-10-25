@@ -124,4 +124,20 @@ object Updater {
             }
         }
     }
+
+    /**
+     * Brings the launcher back after it was updated. While an install runs, Android can't start the
+     * new launcher, and whatever task sits underneath (often a TV input) comes to the front instead.
+     */
+    class ReplacedReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+            runCatching {
+                context.startActivity(
+                    Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                        .setPackage(context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }.onFailure { Log.w(TAG, "couldn't come back after update: ${it.message}") }
+        }
+    }
 }

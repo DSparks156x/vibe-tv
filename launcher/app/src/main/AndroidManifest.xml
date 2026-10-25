@@ -130,6 +130,13 @@
         </service>
 
         <receiver
+            android:name=".data.Updater$ReplacedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+        <receiver
             android:name=".data.Updater$StatusReceiver"
             android:exported="false">
             <intent-filter>
