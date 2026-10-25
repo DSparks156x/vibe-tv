@@ -77,6 +77,7 @@ adb shell cmd package compile -m speed -f com.vibe.tvlauncher
 Release builds get these from repo secrets in CI (see `.github/workflows/release.yml`). For your own
 build, put them in `nuvio/local.properties`: `TMDB_API_KEY`, `TRAKT_CLIENT_ID`, `TRAKT_CLIENT_SECRET`,
 `SIMKL_CLIENT_ID`, `MDBLIST_CLIENT_ID`, `PREMIUMIZE_CLIENT_ID`. Without them, the matching integrations are off.
+New Trakt apps have no client secret; leave `TRAKT_CLIENT_SECRET` empty then.
 
 A default account server can be baked in with `NUVIO_SUPABASE_URL`, `NUVIO_SUPABASE_ANON_KEY` and
 `AVATAR_PUBLIC_BASE_URL` (`<url>/storage/v1/object/public/avatars`). Otherwise users pick one in Settings.

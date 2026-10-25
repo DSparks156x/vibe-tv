@@ -6,7 +6,7 @@
 #   VIBE_KEYSTORE_PASSWORD   keystore password
 #   VIBE_KEY_ALIAS           key alias
 #   VIBE_KEY_PASSWORD        key password
-#   TMDB_API_KEY, TRAKT_CLIENT_ID, TRAKT_CLIENT_SECRET, SIMKL_CLIENT_ID,
+#   TMDB_API_KEY, TRAKT_CLIENT_ID, TRAKT_CLIENT_SECRET (only for older Trakt apps), SIMKL_CLIENT_ID,
 #   MDBLIST_CLIENT_ID, PREMIUMIZE_CLIENT_ID    optional app keys baked into Nuvio
 # Without the keystore secrets the build still runs, signed with a throwaway debug key.
 name: Release
