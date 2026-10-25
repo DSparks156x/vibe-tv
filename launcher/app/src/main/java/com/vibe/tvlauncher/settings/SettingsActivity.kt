@@ -64,6 +64,7 @@ import com.vibe.tvlauncher.ui.TextSecondary
 import com.vibe.tvlauncher.ui.TvTextField
 import com.vibe.tvlauncher.ui.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -104,6 +105,7 @@ private fun SettingsScreen(version: Int, setupUrl: String?) {
     var fields by remember { mutableStateOf<List<Field>?>(null) }
     var localVersion by remember { mutableIntStateOf(0) }
     var message by remember { mutableStateOf<String?>(null) }
+    var status by remember { mutableStateOf<String?>(null) }
     /** The text setting being typed into; the keyboard only opens for this one. */
     var editing by remember { mutableStateOf<String?>(null) }
     var picking by remember { mutableStateOf<Field?>(null) }
@@ -120,7 +122,11 @@ private fun SettingsScreen(version: Int, setupUrl: String?) {
             message = r[key]
             localVersion++
             // Picking a Nuvio account server only helps once you sign in, so take the user there.
+            // Nuvio restarts right after a server change; give the old process a moment to go.
             if (key == "${SettingsRegistry.NUVIO_PREFIX}account_mode" && r[key] == null && value != "none") {
+                status = "Opening Nuvio sign-in…"
+                delay(500)
+                status = null
                 runCatching { context.startActivity(Nuvio.accountIntent()) }
             }
         }
@@ -145,6 +151,7 @@ private fun SettingsScreen(version: Int, setupUrl: String?) {
                 )
             }
             message?.let { Text(it, color = Color(0xFFF28B82), fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
+            status?.let { Text(it, color = TextSecondary, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp)) }
             Spacer(Modifier.height(12.dp))
             val list = fields?.visible()
             if (list == null) {
