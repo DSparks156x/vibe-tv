@@ -12,6 +12,12 @@ The assistant is intended to power voice search and feed your requests cleanly i
 
 The nuvio fork - slightly restyled to match the launcher and a couple other features for better integration.  Does not support signing into an actual nuvio server account, you must selfhost, and build pointed at your selfhost. or just don't use an account.  Luckily, im sure you have a NAS you can go toss another docker image and forget about it. 
 
+![Vibe TV home screen](docs/screenshots/home.png)
+
+| Assistant: "movies like interstellar" | Vibe Nuvio title page |
+|---|---|
+| ![Assistant results](docs/screenshots/assistant.png) | ![Nuvio detail page](docs/screenshots/nuvio-detail.jpg) |
+
 
 | Folder | App | What it is |
 |---|---|---|
