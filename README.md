@@ -6,11 +6,17 @@ That's where VibeTV comes in. The familiar nice looking launcher with content re
 
 Anyways this repo has 2.5 components - A launcher replacement,  an assistant replacement (part of the  launcher) and a nuvio fork. 
 
+## Launcher
+
 The launcher looks like google tv, but sources its content/continue watching/etc etc from nuvio. glorious integration. And you still have apps. Thats about all it has. Its a TV launcher, you click shows and movies to burn your life away watching, and this streamlines that process.
 
-The assistant is intended to power voice search and feed your requests cleanly into Nuvio. it has basic commands like "play (show)" etc, and falls back to asking a chinese LLM if your request doesnt fall into its basic commands. Sweet, sweet natural language processing is here. Its basically AGI. 
+## Assistant
 
-The nuvio fork - slightly restyled to match the launcher and a couple other features for better integration.  Does not support signing into an actual nuvio server account, you must selfhost, and build pointed at your selfhost. or just don't use an account.  Luckily, im sure you have a NAS you can go toss another docker image and forget about it. 
+The assistant is intended to power voice search and feed your requests cleanly into Nuvio. it has basic commands like "play (show)" etc, and falls back to asking a chinese LLM if your request doesnt fall into its basic commands. Sweet, sweet natural language processing is here. Using a sufficiently advanced chinese model you can even say things like "I want to watch that show with the meth teacher" and it'l play that show with the meth teacher.  Its basically AGI. 
+
+## Nuvio Fork
+
+The nuvio fork - slightly restyled to match the launcher and a couple other features for better integration. 
 
 ![Vibe TV home screen](docs/screenshots/home.png)
 
