@@ -32,15 +32,27 @@ adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
 adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
 ```
 
-## 4. Mic button → Vibe assistant (optional)
+## 4. Remote buttons
+With the stock launcher disabled, Google TV sends the remote's profile and settings (gear) buttons nowhere.
+Turn on **Settings > Accessibility > Vibe remote buttons** to make them work again: profile opens the
+Vibe profile picker (Nuvio profiles and Vibe settings), the gear opens TV settings. It reads only those
+two buttons. Or over adb:
+```bash
+adb shell settings put secure enabled_accessibility_services com.vibe.tvlauncher/com.vibe.tvlauncher.keys.RemoteKeyService
+```
+```bash
+adb shell settings put secure accessibility_enabled 1
+```
+
+## 5. Mic button → Vibe assistant (optional)
 Settings > Apps > Default apps > Digital assistant app > **Vibe**, or:
 ```bash
 adb shell cmd role add-role-holder --user 0 android.app.role.ASSISTANT com.vibe.tvlauncher 0
 ```
 Pick Google again in the same setting to undo.
 
-## 5. Settings
-Open the gear on the home screen. Everything there can also be set from your phone or computer: scan the
+## 6. Settings
+Click your avatar (or press the profile button), then **Vibe settings**. Everything there can also be set from your phone or computer: scan the
 QR code on the settings screen (same Wi-Fi) and paste keys and URLs there.
 - **Nuvio account:** No account (default), the official Nuvio service, or your own
   [self-hosted server](https://github.com/NuvioMedia/self-host). Picking one opens Nuvio's sign-in.
