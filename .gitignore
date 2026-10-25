@@ -1,0 +1,22 @@
+# Build output and IDE state
+build/
+.gradle/
+.kotlin/
+.idea/
+*.iml
+.DS_Store
+
+# Machine-specific config and secrets: never commit
+local.properties
+local.dev.properties
+signing.properties
+*.jks
+*.keystore
+
+# Binaries
+*.apk
+*.aab
+*.idsig
+
+# Output of launcher/tools scripts
+launcher/tools/out/

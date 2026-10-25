@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.Launcher" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@null</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:colorBackground">@color/bg</item>
+    </style>
+    <color name="bg">#FF101114</color>
+    <color name="accent">#FF8AB4F8</color>
+</resources>
