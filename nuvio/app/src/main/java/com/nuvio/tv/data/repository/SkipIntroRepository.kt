@@ -1,5 +1,6 @@
 package com.nuvio.tv.data.repository
 
+import com.nuvio.tv.core.vibe.RuntimeConfig
 import android.util.Log
 import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.core.tmdb.TmdbService
@@ -61,7 +62,7 @@ class SkipIntroRepository @Inject constructor(
 ) {
     private val cache = ConcurrentHashMap<String, List<SkipInterval>>()
     private val animeSkipShowIdCache = ConcurrentHashMap<String, String>()
-    private val introDbConfigured = BuildConfig.INTRODB_API_URL.isNotEmpty()
+    private val introDbConfigured = RuntimeConfig.introDbApiUrl.isNotEmpty()
 
     suspend fun getMovieSkipIntervals(contentId: String?, videoId: String? = null): List<SkipInterval> {
         if (!introDbConfigured) return emptyList()

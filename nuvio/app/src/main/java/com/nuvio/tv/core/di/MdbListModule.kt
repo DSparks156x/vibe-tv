@@ -1,5 +1,6 @@
 package com.nuvio.tv.core.di
 
+import com.nuvio.tv.core.vibe.RuntimeConfig
 import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.core.network.NoDelaySocketFactory
 import com.nuvio.tv.core.profile.ProfileScopedCredentialStore
@@ -44,7 +45,7 @@ object MdbListModule {
     @Provides
     @Singleton
     fun configuration(): MdbListConfiguration = MdbListConfiguration(
-        clientId = BuildConfig.MDBLIST_CLIENT_ID,
+        clientId = RuntimeConfig.mdblistClientId,
         appVersion = BuildConfig.VERSION_NAME
     )
 

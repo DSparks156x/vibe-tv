@@ -1,5 +1,6 @@
 package com.nuvio.tv.data.simkl
 
+import com.nuvio.tv.core.vibe.RuntimeConfig
 import com.nuvio.tv.BuildConfig
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
@@ -40,7 +41,7 @@ fun simklRequestHeaders(
 }
 
 fun defaultSimklApiConfiguration(): SimklApiConfiguration = SimklApiConfiguration(
-    clientId = BuildConfig.SIMKL_CLIENT_ID,
+    clientId = RuntimeConfig.simklClientId,
     appName = BuildConfig.SIMKL_APP_NAME.ifBlank { "nuvio" },
     appVersion = BuildConfig.VERSION_NAME.ifBlank { "dev" }
 )

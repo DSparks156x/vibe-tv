@@ -80,6 +80,12 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
         }
     }
 
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+        // Vibe fork: runtime service keys must be readable before Hilt builds the network clients.
+        com.nuvio.tv.core.vibe.RuntimeConfig.init(base)
+    }
+
     override fun onCreate() {
         super.onCreate()
         SentryInitializer.start(this, sentrySettingsDataStore)

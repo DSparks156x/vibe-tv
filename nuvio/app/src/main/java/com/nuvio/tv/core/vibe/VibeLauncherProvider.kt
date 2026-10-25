@@ -58,6 +58,9 @@ class VibeLauncherProvider : ContentProvider() {
         fun authManager(): AuthManager
         fun profileSyncService(): ProfileSyncService
         fun launcherNotifier(): VibeLauncherNotifier
+        fun serverConfigurationStore(): com.nuvio.tv.data.local.ServerConfigurationStore
+        fun serverDiscoveryService(): com.nuvio.tv.data.remote.ServerDiscoveryService
+        fun appRestarter(): com.nuvio.tv.core.runtime.AppRestarter
     }
 
     private val matcher = UriMatcher(UriMatcher.NO_MATCH)
@@ -69,6 +72,7 @@ class VibeLauncherProvider : ContentProvider() {
         matcher.addURI(authority, "profile", PROFILE)
         matcher.addURI(authority, "addons", ADDONS)
         matcher.addURI(authority, "profiles", PROFILES)
+        matcher.addURI(authority, "history", HISTORY)
         return true
     }
 
@@ -88,6 +92,7 @@ class VibeLauncherProvider : ContentProvider() {
             PROFILE -> profile()
             ADDONS -> addons()
             PROFILES -> profiles()
+            HISTORY -> history()
             else -> null
         }
     } catch (e: Exception) {
@@ -188,9 +193,57 @@ class VibeLauncherProvider : ContentProvider() {
         return cursor
     }
 
+    /** Watched titles (finished movies/episodes, one row per title), most recent first. */
+    private fun history(): Cursor {
+        val cursor = MatrixCursor(arrayOf("id", "type", "name", "poster", "lastWatchedMs"))
+        val repo = entryPoint().watchProgressRepository()
+        val (watched, progress) = runBlocking {
+            withTimeoutOrNull(TIMEOUT_MS) {
+                runCatching { repo.watchedItems.first() }.getOrDefault(emptyList()) to
+                    runCatching { repo.allProgress.first() }.getOrDefault(emptyList())
+            }
+        } ?: (emptyList<com.nuvio.tv.domain.model.WatchedItem>() to emptyList())
+        data class Row(val id: String, val type: String, val name: String, val poster: String?, val at: Long)
+        val rows = watched.map { Row(it.contentId, it.contentType, it.title, it.poster, it.watchedAt) } +
+            progress.filter { it.isCompleted() }.map { Row(it.contentId, it.contentType, it.name, it.poster, it.lastWatched) }
+        rows.groupBy { it.id }
+            .map { (_, items) ->
+                val latest = items.maxBy { it.at }
+                latest.copy(poster = latest.poster ?: items.firstNotNullOfOrNull { it.poster })
+            }
+            .sortedByDescending { it.at }
+            .forEach { cursor.addRow(arrayOf<Any?>(it.id, it.type, it.name, it.poster, it.at)) }
+        return cursor
+    }
+
+    private fun settings(): VibeLauncherSettings {
+        val ep = entryPoint()
+        return VibeLauncherSettings(
+            context!!.applicationContext,
+            ep.serverConfigurationStore(),
+            ep.serverDiscoveryService(),
+            ep.authManager(),
+            ep.appRestarter()
+        )
+    }
+
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
         // readPermission only guards query(); call() has to check the permission itself.
         context!!.enforceCallingPermission(PERMISSION, "Vibe launcher permission required")
+        when (method) {
+            VibeLauncherSettings.METHOD_GET -> return Bundle().apply {
+                putString("json", runCatching { settings().getSettingsJson() }
+                    .getOrElse { Log.w(TAG, "get_settings failed", it); "{\"fields\":[]}" })
+            }
+            VibeLauncherSettings.METHOD_SET -> {
+                val values = extras?.keySet()?.associateWith { key -> extras.valueOf(key)?.toString() }.orEmpty()
+                val json = runCatching {
+                    runBlocking { withTimeoutOrNull(SETTINGS_TIMEOUT_MS) { settings().setSettings(values) } }
+                        ?: "{\"results\":{}}"
+                }.getOrElse { Log.w(TAG, "set_settings failed", it); "{\"results\":{}}" }
+                return Bundle().apply { putString("json", json) }
+            }
+        }
         val args = extras?.let { bundle -> bundle.keySet().associateWith { key -> bundle.valueOf(key) } }.orEmpty()
         val result = try {
             runBlocking {
@@ -265,6 +318,9 @@ class VibeLauncherProvider : ContentProvider() {
         const val PROFILE = 3
         const val ADDONS = 4
         const val PROFILES = 5
+        const val HISTORY = 6
+        // Server discovery for backend_url can take a few seconds.
+        const val SETTINGS_TIMEOUT_MS = 20_000L
         const val PERMISSION = "com.vibe.permission.LAUNCHER_DATA"
     }
 }
