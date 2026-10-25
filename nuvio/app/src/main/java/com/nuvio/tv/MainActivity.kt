@@ -327,6 +327,9 @@ open class MainActivity : ComponentActivity() {
     lateinit var deepLinkHandler: DeepLinkHandler
 
     @Inject
+    lateinit var activeServerConfiguration: com.nuvio.tv.domain.model.ServerConfiguration
+
+    @Inject
     lateinit var partyRepository: PartyRepository
 
     private val pendingDeepLinkUrl = MutableStateFlow<String?>(null)
@@ -749,7 +752,10 @@ open class MainActivity : ComponentActivity() {
                     } else if (
                         hasSeenAuthQrOnFirstLaunch == false &&
                         authState !is AuthState.FullAccount &&
-                        !onboardingCompletedThisSession
+                        !onboardingCompletedThisSession &&
+                        // Vibe fork: "No account" (the default without a backend) has nothing to sign into.
+                        (activeServerConfiguration.capabilities.tvLogin ||
+                            activeServerConfiguration.capabilities.emailPasswordAuth)
                     ) {
                         startupDestination = StartupDestination.Setup
                         AuthQrSignInScreen(

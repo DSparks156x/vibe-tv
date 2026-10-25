@@ -29,6 +29,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.nuvio.tv.data.local.AccountMode
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -91,6 +95,16 @@ fun AccountSettingsContent(
             }
 
             is AuthState.SignedOut -> {
+                item(key = "vibe_account_mode") {
+                    // Vibe fork: pick no account / official / own server before signing in.
+                    VibeAccountModeRow(
+                        modifier = if (initialFocusRequester != null) {
+                            Modifier.focusRequester(initialFocusRequester)
+                        } else {
+                            Modifier
+                        }
+                    )
+                }
                 item(key = "account_signed_out_info") {
                     Text(
                         text = stringResource(R.string.account_sync_description),
@@ -101,7 +115,7 @@ fun AccountSettingsContent(
                 item(key = "account_sync_note_signed_out") {
                     AccountInlineNote(text = stringResource(R.string.account_sync_restart_note))
                 }
-                item(key = "account_sign_in_qr") {
+                if (viewModel.canSignIn) item(key = "account_sign_in_qr") {
                     SettingsActionButton(
                         icon = Icons.Default.VpnKey,
                         title = stringResource(
@@ -110,12 +124,7 @@ fun AccountSettingsContent(
                         subtitle = stringResource(
                             if (viewModel.usesEmailPasswordLogin) R.string.account_signin_email_subtitle else R.string.account_signin_qr_subtitle
                         ),
-                        onClick = onNavigateToAuthQrSignIn,
-                        modifier = if (initialFocusRequester != null) {
-                            Modifier.focusRequester(initialFocusRequester)
-                        } else {
-                            Modifier
-                        }
+                        onClick = onNavigateToAuthQrSignIn
                     )
                 }
             }
@@ -123,6 +132,28 @@ fun AccountSettingsContent(
             is AuthState.FullAccount -> Unit
 
         }
+    }
+}
+
+@Composable
+private fun VibeAccountModeRow(modifier: Modifier = Modifier) {
+    val serverViewModel: ServerConnectionViewModel = hiltViewModel()
+    val serverState by serverViewModel.uiState.collectAsState()
+    var showPicker by remember { mutableStateOf(false) }
+    SettingsActionButton(
+        icon = Icons.Default.Cloud,
+        title = stringResource(R.string.vibe_account_mode_title),
+        subtitle = when (serverState.accountMode) {
+            AccountMode.NONE -> stringResource(R.string.vibe_account_mode_none)
+            AccountMode.OFFICIAL -> stringResource(R.string.vibe_account_mode_official)
+            AccountMode.CUSTOM -> stringResource(R.string.vibe_account_mode_custom) + " · " +
+                serverState.activeServer.backendUrl.removePrefix("https://").removePrefix("http://")
+        },
+        onClick = { showPicker = true },
+        modifier = modifier
+    )
+    if (showPicker) {
+        AccountModePickerDialog(viewModel = serverViewModel, onDismiss = { showPicker = false })
     }
 }
 

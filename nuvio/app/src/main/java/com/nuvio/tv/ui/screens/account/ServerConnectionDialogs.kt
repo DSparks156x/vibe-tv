@@ -52,6 +52,7 @@ import androidx.tv.material3.IconButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
+import com.nuvio.tv.data.local.AccountMode
 import com.nuvio.tv.domain.model.ServerConfiguration
 import com.nuvio.tv.ui.components.NuvioDialog
 import com.nuvio.tv.ui.screens.detail.requestFocusAfterFrames
@@ -67,6 +68,7 @@ internal fun ServerOptionsMenuHost(
     var expanded by remember { mutableStateOf(false) }
     var showConnectionDialog by remember { mutableStateOf(false) }
     var showOfficialConfirmation by remember { mutableStateOf(false) }
+    var showAccountPicker by remember { mutableStateOf(false) }
     val firstMenuItemFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(expanded) {
@@ -87,7 +89,8 @@ internal fun ServerOptionsMenuHost(
 
     Box(modifier = modifier) {
         IconButton(
-            onClick = { expanded = true },
+            // Vibe fork: the account picker replaces upstream's official/custom server menu.
+            onClick = { showAccountPicker = true },
             modifier = Modifier.size(48.dp),
             colors = IconButtonDefaults.colors(
                 containerColor = Color.Transparent,
@@ -144,6 +147,10 @@ internal fun ServerOptionsMenuHost(
                 }
             )
         }
+    }
+
+    if (showAccountPicker) {
+        AccountModePickerDialog(viewModel = viewModel, onDismiss = { showAccountPicker = false })
     }
 
     if (showConnectionDialog) {
@@ -522,5 +529,122 @@ private fun ServerMessage(
             style = MaterialTheme.typography.bodySmall,
             color = contentColor
         )
+    }
+}
+
+/**
+ * Vibe fork: pick which Nuvio account backend this TV uses: no account (default for builds without
+ * a baked-in backend), the official Nuvio service, or the household's own self-host server.
+ * Switching signs out of the current server and restarts Nuvio.
+ */
+@Composable
+internal fun AccountModePickerDialog(
+    viewModel: ServerConnectionViewModel,
+    onDismiss: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var showServerDialog by remember { mutableStateOf(false) }
+    val firstFocus = remember { FocusRequester() }
+
+    if (showServerDialog) {
+        ServerConnectionDialog(
+            uiState = uiState,
+            onDiscover = viewModel::discover,
+            onConnect = viewModel::connectDiscoveredServer,
+            onDismiss = {
+                viewModel.resetDiscovery()
+                showServerDialog = false
+            }
+        )
+        return
+    }
+
+    LaunchedEffect(Unit) { firstFocus.requestFocusAfterFrames(frames = 3) }
+
+    val busy = uiState.isDiscovering || uiState.isSwitching
+    NuvioDialog(
+        onDismiss = { if (!busy) onDismiss() },
+        title = stringResource(R.string.vibe_account_mode_title),
+        subtitle = stringResource(R.string.vibe_account_mode_subtitle),
+        suppressFirstKeyUp = false
+    ) {
+        AccountModeOption(
+            label = stringResource(R.string.vibe_account_mode_none),
+            description = stringResource(R.string.vibe_account_mode_none_desc),
+            selected = uiState.accountMode == AccountMode.NONE,
+            enabled = !busy,
+            modifier = Modifier.focusRequester(firstFocus),
+            onClick = viewModel::useNoAccount
+        )
+        AccountModeOption(
+            label = stringResource(R.string.vibe_account_mode_official),
+            description = stringResource(R.string.vibe_account_mode_official_desc),
+            selected = uiState.accountMode == AccountMode.OFFICIAL,
+            enabled = !busy,
+            onClick = viewModel::useOfficialAccount
+        )
+        AccountModeOption(
+            label = stringResource(R.string.vibe_account_mode_custom),
+            description = if (uiState.accountMode == AccountMode.CUSTOM) {
+                uiState.activeServer.backendUrl
+            } else {
+                stringResource(R.string.vibe_account_mode_custom_desc)
+            },
+            selected = uiState.accountMode == AccountMode.CUSTOM,
+            enabled = !busy,
+            onClick = {
+                viewModel.resetDiscovery()
+                showServerDialog = true
+            }
+        )
+        when {
+            busy -> ServerMessage(
+                text = stringResource(R.string.vibe_account_mode_switching),
+                containerColor = NuvioTheme.colors.BackgroundCard,
+                contentColor = NuvioTheme.colors.TextSecondary
+            )
+            uiState.error != null -> ServerMessage(
+                text = uiState.error.orEmpty(),
+                containerColor = Color(0x33C62828),
+                contentColor = Color(0xFFFF8A80)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccountModeOption(
+    label: String,
+    description: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.fillMaxWidth(),
+        colors = ButtonDefaults.colors(
+            containerColor = if (selected) NuvioTheme.colors.FocusBackground else NuvioTheme.colors.BackgroundCard,
+            contentColor = NuvioTheme.colors.TextPrimary
+        )
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (selected) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }

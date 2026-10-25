@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.R
 import com.nuvio.tv.core.auth.AuthManager
 import com.nuvio.tv.core.runtime.AppRestarter
+import com.nuvio.tv.data.local.AccountMode
 import com.nuvio.tv.data.local.ServerConfigurationStore
 import com.nuvio.tv.data.remote.ServerDiscoveryException
 import com.nuvio.tv.data.remote.ServerDiscoveryFailure
@@ -23,6 +24,8 @@ import kotlinx.coroutines.launch
 
 data class ServerConnectionUiState(
     val activeServer: ServerConfiguration,
+    /** Vibe fork: none / official / custom (see [AccountMode]). */
+    val accountMode: AccountMode = AccountMode.NONE,
     val isDiscovering: Boolean = false,
     val isSwitching: Boolean = false,
     val discoveredServer: ServerConfiguration? = null,
@@ -38,7 +41,9 @@ class ServerConnectionViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     activeServer: ServerConfiguration
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ServerConnectionUiState(activeServer = activeServer))
+    private val _uiState = MutableStateFlow(
+        ServerConnectionUiState(activeServer = activeServer, accountMode = configurationStore.accountMode())
+    )
     val uiState: StateFlow<ServerConnectionUiState> = _uiState.asStateFlow()
     private var discoveryJob: Job? = null
 
@@ -62,6 +67,30 @@ class ServerConnectionViewModel @Inject constructor(
     fun connectDiscoveredServer() {
         val server = _uiState.value.discoveredServer ?: return
         switchServer { configurationStore.saveCustom(server) }
+    }
+
+    /** Vibe fork: no account; nothing syncs and no sign-in is offered. */
+    fun useNoAccount() {
+        if (_uiState.value.accountMode == AccountMode.NONE) return
+        switchServer(configurationStore::saveNoAccount)
+    }
+
+    /** Vibe fork: the official Nuvio service, found through api.nuvio.tv's discovery document. */
+    fun useOfficialAccount() {
+        if (_uiState.value.accountMode == AccountMode.OFFICIAL) return
+        if (_uiState.value.isDiscovering || _uiState.value.isSwitching) return
+        discoveryJob = viewModelScope.launch {
+            _uiState.update { it.copy(isDiscovering = true, error = null) }
+            discoveryService.discover(ServerConfigurationStore.OFFICIAL_BACKEND_URL).fold(
+                onSuccess = { server ->
+                    _uiState.update { it.copy(isDiscovering = false) }
+                    switchServer { configurationStore.saveOfficial(server) }
+                },
+                onFailure = { error ->
+                    _uiState.update { it.copy(isDiscovering = false, error = discoveryErrorMessage(error)) }
+                }
+            )
+        }
     }
 
     fun useOfficialServer() {

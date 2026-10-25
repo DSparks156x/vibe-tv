@@ -96,6 +96,10 @@ class AccountViewModel @Inject constructor(
     val usesEmailPasswordLogin: Boolean
         get() = serverConfiguration.isCustom && serverConfiguration.capabilities.emailPasswordAuth
 
+    /** Vibe fork: false in "No account" mode (nothing to sign into). */
+    val canSignIn: Boolean
+        get() = serverConfiguration.capabilities.tvLogin || serverConfiguration.capabilities.emailPasswordAuth
+
     init {
         observeAuthState()
         observeProfileNames()

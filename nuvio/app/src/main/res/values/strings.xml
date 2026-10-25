@@ -339,6 +339,16 @@
     <string name="theme_color_amber">Amber</string>
     <string name="theme_color_rose">Rose</string>
     <string name="theme_color_vibe" translatable="false">Vibe</string>
+    <!-- Vibe fork: account picker -->
+    <string name="vibe_account_mode_title" translatable="false">Nuvio account</string>
+    <string name="vibe_account_mode_subtitle" translatable="false">Accounts sync your library, watch progress and add-ons. Switching signs you out and restarts Nuvio.</string>
+    <string name="vibe_account_mode_none" translatable="false">No account</string>
+    <string name="vibe_account_mode_none_desc" translatable="false">Everything stays on this TV. Nothing syncs.</string>
+    <string name="vibe_account_mode_official" translatable="false">Official Nuvio account</string>
+    <string name="vibe_account_mode_official_desc" translatable="false">Sign in with a nuvio.tv account.</string>
+    <string name="vibe_account_mode_custom" translatable="false">My own server</string>
+    <string name="vibe_account_mode_custom_desc" translatable="false">A Nuvio self-host server you or a friend runs.</string>
+    <string name="vibe_account_mode_switching" translatable="false">Switching…</string>
     <string name="theme_color_white">White</string>
     <string name="theme_color_custom">Custom</string>
     <string name="custom_theme_title">Your custom gradient</string>

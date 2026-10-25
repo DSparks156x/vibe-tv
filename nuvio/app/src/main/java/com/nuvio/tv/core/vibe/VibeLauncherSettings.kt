@@ -10,6 +10,7 @@ import android.util.Log
 import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.core.auth.AuthManager
 import com.nuvio.tv.core.runtime.AppRestarter
+import com.nuvio.tv.data.local.AccountMode
 import com.nuvio.tv.data.local.ServerConfigurationStore
 import com.nuvio.tv.data.remote.ServerDiscoveryException
 import com.nuvio.tv.data.remote.ServerDiscoveryFailure
@@ -20,8 +21,9 @@ import org.json.JSONObject
 
 /**
  * Vibe fork: "get_settings" / "set_settings" for [VibeLauncherProvider]. Only what a person
- * provides themselves is settable here: the sync backend (each household runs its own server).
- * Service API keys are baked into release builds by CI from repository secrets.
+ * provides themselves is settable here: which account backend Nuvio uses (none, the official
+ * service, or their own server) and that server's URL. Service API keys are baked into release
+ * builds by CI from repository secrets.
  */
 class VibeLauncherSettings(
     private val context: Context,
@@ -33,6 +35,26 @@ class VibeLauncherSettings(
     fun getSettingsJson(): String {
         val fields = JSONArray()
         val active = serverConfigurationStore.loadActive()
+        val mode = serverConfigurationStore.accountMode()
+        fields.put(
+            JSONObject()
+                .put("key", KEY_ACCOUNT_MODE)
+                .put("label", "Nuvio account")
+                .put(
+                    "help",
+                    "Accounts sync library, watch progress and add-ons. Switching signs Nuvio out; sign in again on the TV."
+                )
+                .put("type", "choice")
+                .put("group", "Account")
+                .put("value", mode.wire)
+                .put(
+                    "choices",
+                    JSONArray()
+                        .put(JSONObject().put("id", AccountMode.NONE.wire).put("label", "No account"))
+                        .put(JSONObject().put("id", AccountMode.OFFICIAL.wire).put("label", "Official Nuvio account"))
+                        .put(JSONObject().put("id", AccountMode.CUSTOM.wire).put("label", "My own server"))
+                )
+        )
         fields.put(
             JSONObject()
                 .put("key", KEY_BACKEND_URL)
@@ -44,7 +66,11 @@ class VibeLauncherSettings(
                 )
                 .put("type", "url")
                 .put("group", "Account")
-                .put("value", if (active.isCustom) active.backendUrl else "")
+                .put("value", if (mode == AccountMode.CUSTOM) active.backendUrl else "")
+                .put(
+                    "show_when",
+                    JSONObject().put("key", KEY_ACCOUNT_MODE).put("values", JSONArray().put(AccountMode.CUSTOM.wire))
+                )
         )
         return JSONObject().put("fields", fields).toString()
     }
@@ -53,9 +79,15 @@ class VibeLauncherSettings(
     suspend fun setSettings(values: Map<String, String?>): String {
         val results = JSONObject()
         var restart = false
-        values.forEach { (key, raw) ->
+        // account_mode first, so {account_mode: custom, backend_url: ...} in one call works.
+        val ordered = values.entries.sortedBy { if (it.key == KEY_ACCOUNT_MODE) 0 else 1 }
+        ordered.forEach { (key, raw) ->
             val value = raw?.trim().orEmpty()
             val outcome = when (key) {
+                KEY_ACCOUNT_MODE -> {
+                    val pendingUrl = values[KEY_BACKEND_URL]?.trim().orEmpty()
+                    setAccountMode(value, pendingUrl.isNotEmpty()).also { if (it.second) restart = true }.first
+                }
                 KEY_BACKEND_URL -> setBackend(value).also { if (it.second) restart = true }.first
                 else -> "unknown setting"
             }
@@ -64,6 +96,33 @@ class VibeLauncherSettings(
         context.contentResolver.notifyChange(Uri.parse("content://${context.packageName}.launcher/settings"), null)
         if (restart) scheduleRestart()
         return JSONObject().put("results", results).toString()
+    }
+
+    /** Returns (result, needsRestart). [urlFollows]: a backend_url in the same call does the custom switch. */
+    private suspend fun setAccountMode(value: String, urlFollows: Boolean): Pair<String, Boolean> {
+        val target = AccountMode.fromWire(value) ?: return "unknown account mode" to false
+        if (target == serverConfigurationStore.accountMode()) return "ok" to false
+        return when (target) {
+            AccountMode.NONE -> {
+                if (authManager.prepareForServerSwitch().isFailure) return "could not sign out of the current server" to false
+                (if (serverConfigurationStore.saveNoAccount()) "ok" else "could not save") to true
+            }
+            AccountMode.OFFICIAL -> {
+                val official = serverDiscoveryService.discover(ServerConfigurationStore.OFFICIAL_BACKEND_URL)
+                    .getOrElse { return "could not reach the official Nuvio server" to false }
+                if (authManager.prepareForServerSwitch().isFailure) return "could not sign out of the current server" to false
+                (if (serverConfigurationStore.saveOfficial(official)) "ok" else "could not save") to true
+            }
+            AccountMode.CUSTOM -> when {
+                urlFollows -> "ok" to false
+                serverConfigurationStore.hasBuildBackend() -> {
+                    // This build has its own server baked in: switch back to it.
+                    if (authManager.prepareForServerSwitch().isFailure) return "could not sign out of the current server" to false
+                    (if (serverConfigurationStore.useOfficial()) "ok" else "could not save") to true
+                }
+                else -> "enter your server URL" to false
+            }
+        }
     }
 
     /** Returns (result, needsRestart). */
@@ -114,6 +173,7 @@ class VibeLauncherSettings(
         const val METHOD_GET = "get_settings"
         const val METHOD_SET = "set_settings"
         const val KEY_BACKEND_URL = "backend_url"
+        const val KEY_ACCOUNT_MODE = "account_mode"
         private const val TAG = "VibeLauncherSettings"
         private const val RESTART_DELAY_MS = 1_000L
     }
