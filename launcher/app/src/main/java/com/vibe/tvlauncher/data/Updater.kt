@@ -133,12 +133,11 @@ object Updater {
     private fun prefs(context: Context) = context.getSharedPreferences("updater", Context.MODE_PRIVATE)
 
     private fun saveQueue(context: Context, apps: List<App>) {
-        prefs(context).edit().putString(QUEUE, apps.joinToString("
-") { "${it.pkg} ${it.url}" }).apply()
+        prefs(context).edit().putString(QUEUE, apps.joinToString(";") { "${it.pkg} ${it.url}" }).apply()
     }
 
     private fun popQueue(context: Context): App? {
-        val apps = prefs(context).getString(QUEUE, null).orEmpty().lines().filter { it.isNotBlank() }
+        val apps = prefs(context).getString(QUEUE, null).orEmpty().split(';').filter { it.isNotBlank() }
             .map { App(it.substringBefore(' '), it.substringAfter(' ')) }
         saveQueue(context, apps.drop(1))
         return apps.firstOrNull()
