@@ -60,7 +60,7 @@ class ServerConfigurationStore @Inject constructor(
                 )
             } ?: noAccountConfiguration()
             AccountMode.CUSTOM -> storedServer()
-                ?: if (hasBuildBackend()) buildConfiguration() else noAccountConfiguration()
+                ?: if (hasBuildBackend()) persistBuildServer() else noAccountConfiguration()
         }
     }
 
@@ -82,11 +82,37 @@ class ServerConfigurationStore @Inject constructor(
             ),
             isCustom = true,
             discoveryUrl = prefs.getString(KEY_DISCOVERY_URL, null),
-            tvLoginWebBaseUrl = "$backendUrl/tv-login",
-            // Self-host dashboards serve /tv-login only, so custom servers use that QR flow.
-            deviceLoginWebBaseUrl = null,
-            avatarPublicBaseUrl = "$backendUrl/storage/v1/object/public/avatars"
+            tvLoginWebBaseUrl = prefs.getString(KEY_TV_LOGIN_URL, null)?.takeIf { it.isNotBlank() }
+                ?: "$backendUrl/tv-login",
+            // Self-host dashboards serve /tv-login only, so custom servers use that QR flow
+            // (a persisted build server keeps whatever its build used).
+            deviceLoginWebBaseUrl = prefs.getString(KEY_DEVICE_LOGIN_URL, null)?.takeIf { it.isNotBlank() },
+            avatarPublicBaseUrl = prefs.getString(KEY_AVATAR_BASE_URL, null)?.takeIf { it.isNotBlank() }
+                ?: "$backendUrl/storage/v1/object/public/avatars"
         )
+    }
+
+    /**
+     * Vibe fork: saves the backend this build has baked in as an ordinary saved server, so an
+     * update to a build without one (e.g. a CI release) keeps using it. Same URL and key, so the
+     * signed-in session stays valid. Runs once: afterwards [storedServer] answers.
+     */
+    private fun persistBuildServer(): ServerConfiguration {
+        val build = buildConfiguration()
+        val saved = preferences
+            .edit()
+            .putString(KEY_ACCOUNT_MODE, AccountMode.CUSTOM.wire)
+            .putBoolean(KEY_CUSTOM_ENABLED, true)
+            .putString(KEY_BACKEND_URL, build.backendUrl)
+            .putString(KEY_PUBLISHABLE_KEY, build.publishableKey)
+            .putBoolean(KEY_EMAIL_PASSWORD_AUTH, build.capabilities.emailPasswordAuth)
+            .putBoolean(KEY_TV_LOGIN, build.capabilities.tvLogin)
+            .putBoolean(KEY_WATCH_PARTY, build.capabilities.watchParty)
+            .putString(KEY_AVATAR_BASE_URL, build.avatarPublicBaseUrl)
+            .putString(KEY_TV_LOGIN_URL, build.tvLoginWebBaseUrl)
+            .putString(KEY_DEVICE_LOGIN_URL, build.deviceLoginWebBaseUrl)
+            .commit()
+        return (if (saved) storedServer() else null) ?: build
     }
 
     /** Saves a discovered self-host server as the active account backend. */
@@ -115,6 +141,9 @@ class ServerConfigurationStore @Inject constructor(
             .putBoolean(KEY_TV_LOGIN, configuration.capabilities.tvLogin)
             .putBoolean(KEY_WATCH_PARTY, configuration.capabilities.watchParty)
             .putString(KEY_DISCOVERY_URL, configuration.discoveryUrl)
+            .putString(KEY_AVATAR_BASE_URL, configuration.avatarPublicBaseUrl)
+            .remove(KEY_TV_LOGIN_URL)
+            .remove(KEY_DEVICE_LOGIN_URL)
             .commit()
     }
 
@@ -171,5 +200,8 @@ class ServerConfigurationStore @Inject constructor(
         private const val KEY_TV_LOGIN = "tv_login"
         private const val KEY_WATCH_PARTY = "watch_party"
         private const val KEY_DISCOVERY_URL = "discovery_url"
+        private const val KEY_AVATAR_BASE_URL = "avatar_base_url"
+        private const val KEY_TV_LOGIN_URL = "tv_login_url"
+        private const val KEY_DEVICE_LOGIN_URL = "device_login_url"
     }
 }

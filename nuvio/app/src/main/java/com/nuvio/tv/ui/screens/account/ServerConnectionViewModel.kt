@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.R
 import com.nuvio.tv.core.auth.AuthManager
 import com.nuvio.tv.core.runtime.AppRestarter
+import com.nuvio.tv.BuildConfig
 import com.nuvio.tv.data.local.AccountMode
 import com.nuvio.tv.data.local.ServerConfigurationStore
 import com.nuvio.tv.data.remote.ServerDiscoveryException
@@ -59,7 +60,8 @@ class ServerConnectionViewModel @Inject constructor(
                     // Vibe fork: OFFICIAL_SERVER means "this build's own backend". From no account or
                     // the official service, switch back to it (the build default) instead of refusing.
                     val buildServer = (error as? ServerDiscoveryException)?.failure == ServerDiscoveryFailure.OFFICIAL_SERVER
-                    val onBuildServer = _uiState.value.accountMode == AccountMode.CUSTOM && !_uiState.value.activeServer.isCustom
+                    val onBuildServer = _uiState.value.accountMode == AccountMode.CUSTOM &&
+                        _uiState.value.activeServer.backendUrl.trimEnd('/') == BuildConfig.SUPABASE_URL.trimEnd('/')
                     if (buildServer && !onBuildServer && configurationStore.hasBuildBackend()) {
                         _uiState.update { it.copy(isDiscovering = false) }
                         switchServer(configurationStore::useOfficial)

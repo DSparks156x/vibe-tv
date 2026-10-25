@@ -2258,6 +2258,7 @@
     <string name="official_server_description">You will be signed out of the custom server and the app will restart with the official service.</string>
     <string name="official_server_action">Use official server</string>
     <string name="custom_server_error_invalid_url">Enter a valid HTTP or HTTPS Backend URL.</string>
+    <string name="vibe_about_updates_via_launcher" translatable="false">Updates come through the Vibe launcher.</string>
     <string name="vibe_servers_pin_subtitle" translatable="false">Scan the code, or open the link on your phone or computer and enter the code.</string>
     <string name="vibe_servers_pin_instructions" translatable="false">Go to %1$s and enter</string>
     <string name="vibe_servers_pin_waiting" translatable="false">Waiting for approval…</string>

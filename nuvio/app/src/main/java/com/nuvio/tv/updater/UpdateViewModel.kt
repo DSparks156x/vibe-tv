@@ -25,6 +25,7 @@ data class UpdateUiState(
     val autoInstallNoticeEnabled: Boolean = false
 )
 
+/** Vibe fork: Nuvio has no updater of its own; the Vibe launcher updates both apps. */
 @HiltViewModel
 class UpdateViewModel @Inject constructor() : ViewModel() {
     private val _uiState = MutableStateFlow(UpdateUiState())

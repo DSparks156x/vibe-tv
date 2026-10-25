@@ -51,6 +51,9 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var serverUserStateProjection: ServerUserStateProjection
 
     companion object {
+        /** UpdateJobService check, install and check-now jobs (removed updater). */
+        private val REMOVED_UPDATER_JOB_IDS = listOf(10_020, 10_021, 10_022)
+
         /**
          * Shared cookie jar for CloudStream extension HTTP requests.
          * Accessible so the player's OkHttpClient can share cookies
@@ -86,12 +89,19 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
         PluginRuntimeHooks.onApplicationCreate(this)
         androidTvChannelSyncService.start()
         vibeLauncherNotifier.start()
+        cancelRemovedUpdaterJobs()
         serverUserStateProjection.start()
         // Load locale synchronously so it's available before Activity.attachBaseContext.
         // SharedPreferences reads are fast (cached in memory after first access).
         val tag = getSharedPreferences("app_locale", Context.MODE_PRIVATE)
             .getString("locale_tag", null)
         LocaleCache.localeTag = tag ?: ""
+    }
+
+    /** Vibe fork: the in-app updater is gone; drop the check/install jobs older versions scheduled. */
+    private fun cancelRemovedUpdaterJobs() {
+        val scheduler = getSystemService(android.app.job.JobScheduler::class.java) ?: return
+        REMOVED_UPDATER_JOB_IDS.forEach { id -> runCatching { scheduler.cancel(id) } }
     }
 
     override fun newImageLoader(context: android.content.Context): ImageLoader {

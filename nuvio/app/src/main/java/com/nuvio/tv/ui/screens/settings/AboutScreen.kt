@@ -140,9 +140,13 @@ fun AboutSettingsContent(
 
                             Spacer(modifier = Modifier.height(NuvioTheme.spacing.xxs))
 
-                            if (AppFeaturePolicy.inAppUpdatesEnabled) {
-                                UpdateChannelSettings(initialFocusRequester, modifier = firstRowModifier)
-                            }
+                            // Vibe fork: no in-app updater; say where updates come from instead.
+                            Text(
+                                text = stringResource(R.string.vibe_about_updates_via_launcher),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NuvioTheme.colors.TextSecondary,
+                                textAlign = TextAlign.Center
+                            )
 
                             SettingsActionRow(
                                 title = stringResource(R.string.about_privacy_policy),
