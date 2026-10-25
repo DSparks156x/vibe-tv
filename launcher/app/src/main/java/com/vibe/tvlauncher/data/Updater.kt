@@ -46,19 +46,30 @@ object Updater {
         }
     }
 
-    /** "v1.2.3" -> [1, 2, 3]; null for dev builds. */
-    fun parse(version: String): List<Int>? {
+    /** "v1.2.3" or "v1.2.3-tag4"; null for dev builds. */
+    data class Version(val numbers: List<Int>, val suffix: String?)
+
+    fun parse(version: String): Version? {
         if (!version.startsWith("v")) return null
-        val parts = version.removePrefix("v").substringBefore('-').split('.')
-        return parts.map { it.toIntOrNull() ?: return null }
+        val core = version.removePrefix("v").substringBefore('-')
+        val numbers = core.split('.').map { it.toIntOrNull() ?: return null }
+        return Version(numbers, version.substringAfter('-', "").ifEmpty { null })
     }
 
-    fun compare(a: List<Int>, b: List<Int>): Int {
-        for (i in 0 until maxOf(a.size, b.size)) {
-            val d = a.getOrElse(i) { 0 } - b.getOrElse(i) { 0 }
+    /** Numbers first; then a plain release beats a suffixed one, and suffixes compare by their trailing number. */
+    fun compare(a: Version, b: Version): Int {
+        for (i in 0 until maxOf(a.numbers.size, b.numbers.size)) {
+            val d = a.numbers.getOrElse(i) { 0 } - b.numbers.getOrElse(i) { 0 }
             if (d != 0) return d
         }
-        return 0
+        if (a.suffix == b.suffix) return 0
+        if (a.suffix == null) return 1
+        if (b.suffix == null) return -1
+        val na = Regex("\\d+$").find(a.suffix)?.value?.toIntOrNull()
+        val nb = Regex("\\d+$").find(b.suffix)?.value?.toIntOrNull()
+        val la = a.suffix.removeSuffix(na?.toString() ?: "")
+        val lb = b.suffix.removeSuffix(nb?.toString() ?: "")
+        return if (la == lb && na != null && nb != null) na - nb else a.suffix.compareTo(b.suffix)
     }
 
     /** Android's "install unknown apps" switch for the launcher; null if it's already on. */
