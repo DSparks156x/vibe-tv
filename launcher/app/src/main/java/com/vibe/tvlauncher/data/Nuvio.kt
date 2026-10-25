@@ -149,7 +149,18 @@ object Nuvio {
     }
 
     /** One of Nuvio's runtime settings (keys and servers a release build can't ship). */
-    data class Setting(val key: String, val label: String, val help: String, val type: String, val value: String, val group: String)
+    data class Setting(
+        val key: String,
+        val label: String,
+        val help: String,
+        val type: String,
+        val value: String,
+        val group: String,
+        /** id to label, for type "choice". */
+        val choices: List<Pair<String, String>> = emptyList(),
+        /** Only relevant while setting first has one of the values in second. */
+        val showWhen: Pair<String, Set<String>>? = null,
+    )
 
     /** Nuvio's settings schema; empty when this Nuvio build doesn't expose settings. Secrets come back as "set"/"". */
     fun settings(context: Context): List<Setting> {
@@ -164,6 +175,13 @@ object Nuvio {
                 type = o.optString("type", "text"),
                 value = o.optString("value"),
                 group = o.optString("group"),
+                choices = o.optJSONArray("choices")?.let { a ->
+                    (0 until a.length()).mapNotNull { j -> a.optJSONObject(j)?.let { it.optString("id") to it.optString("label") } }
+                }.orEmpty(),
+                showWhen = o.optJSONObject("show_when")?.let { w ->
+                    val vals = w.optJSONArray("values") ?: return@let null
+                    w.optString("key") to (0 until vals.length()).map { vals.optString(it) }.toSet()
+                },
             )
         }
     }

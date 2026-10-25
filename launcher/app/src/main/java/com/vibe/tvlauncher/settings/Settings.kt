@@ -176,9 +176,12 @@ object SettingsRegistry {
             type = when (s.type) {
                 "secret" -> FieldType.Secret
                 "bool" -> FieldType.Toggle
+                "choice" -> FieldType.Choice
                 else -> FieldType.Text
             },
+            choices = s.choices,
             value = s.value,
+            showWhen = s.showWhen?.let { (k, v) -> NUVIO_PREFIX + k to v },
             emptyLabel = "Default",
         )
     }
