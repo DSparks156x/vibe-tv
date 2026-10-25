@@ -1898,7 +1898,9 @@ private fun MetaDetailsContent(
     val showStandardOverallRatings = overallRatingsVisibility
         .showStandardDetailRatings(isMdbListRatingsActive)
     val visibleMdbListRatings = mdbListRatings.takeIf { isMdbListRatingsActive }
-    val hasRatingsSection = isTvShow && showEpisodeImdbRatings
+    // Vibe fork: hide the tab when no episode-ratings service is configured (upstream's are private).
+    val hasRatingsSection = isTvShow && showEpisodeImdbRatings &&
+        (EPISODE_RATINGS_SERVICE_CONFIGURED || episodeImdbRatings.isNotEmpty())
     val strTabCast = stringResource(R.string.detail_tab_cast)
     val strTabRatings = stringResource(R.string.detail_tab_ratings)
     val strTabMoreLikeThis = stringResource(R.string.detail_tab_more_like_this)
@@ -3554,3 +3556,7 @@ private fun LibraryListPickerDialog(
         }
     }
 }
+
+private val EPISODE_RATINGS_SERVICE_CONFIGURED =
+    com.nuvio.tv.BuildConfig.IMDB_TAPFRAME_API_BASE_URL.isNotBlank() ||
+        com.nuvio.tv.BuildConfig.IMDB_RATINGS_API_BASE_URL.isNotBlank()

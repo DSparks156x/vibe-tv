@@ -19,9 +19,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Vibe fork: "get_settings" / "set_settings" for [VibeLauncherProvider]. The launcher's settings
- * screen and setup page configure Nuvio's service keys ([RuntimeConfig]) and its sync backend.
- * Secrets are never returned, only "set" or "".
+ * Vibe fork: "get_settings" / "set_settings" for [VibeLauncherProvider]. Only what a person
+ * provides themselves is settable here: the sync backend (each household runs its own server).
+ * Service API keys are baked into release builds by CI from repository secrets.
  */
 class VibeLauncherSettings(
     private val context: Context,
@@ -42,22 +42,10 @@ class VibeLauncherSettings(
                     "Your Nuvio self-host backend (e.g. https://nuvio.example.com). Empty = the build default. " +
                         "Changing it signs Nuvio out; sign in again on the TV."
                 )
-                .put("type", RuntimeConfig.Type.URL.wire)
+                .put("type", "url")
                 .put("group", "Account")
                 .put("value", if (active.isCustom) active.backendUrl else "")
         )
-        RuntimeConfig.fields.forEach { f ->
-            val value = RuntimeConfig.value(f.key)
-            fields.put(
-                JSONObject()
-                    .put("key", f.key)
-                    .put("label", f.label)
-                    .put("help", f.help)
-                    .put("type", f.type.wire)
-                    .put("group", f.group)
-                    .put("value", if (f.type == RuntimeConfig.Type.SECRET) (if (value.isBlank()) "" else "set") else value)
-            )
-        }
         return JSONObject().put("fields", fields).toString()
     }
 
@@ -67,19 +55,9 @@ class VibeLauncherSettings(
         var restart = false
         values.forEach { (key, raw) ->
             val value = raw?.trim().orEmpty()
-            val outcome = when {
-                key == KEY_BACKEND_URL -> setBackend(value).also { if (it.second) restart = true }.first
-                RuntimeConfig.field(key) == null -> "unknown setting"
-                else -> {
-                    val field = RuntimeConfig.field(key)!!
-                    val normalized = normalize(field, value)
-                    when {
-                        normalized == null -> "not a valid http(s) URL"
-                        normalized == RuntimeConfig.override(key).orEmpty() -> "ok"
-                        RuntimeConfig.setOverride(key, normalized) -> { restart = true; "ok" }
-                        else -> "could not save"
-                    }
-                }
+            val outcome = when (key) {
+                KEY_BACKEND_URL -> setBackend(value).also { if (it.second) restart = true }.first
+                else -> "unknown setting"
             }
             results.put(key, outcome)
         }
@@ -114,15 +92,8 @@ class VibeLauncherSettings(
         return "ok" to true
     }
 
-    private fun normalize(field: RuntimeConfig.Field, value: String): String? {
-        if (value.isEmpty() || field.type != RuntimeConfig.Type.URL) return value
-        val lower = value.lowercase()
-        if (!lower.startsWith("https://") && !lower.startsWith("http://")) return null
-        return if (value.endsWith("/")) value else "$value/" // Retrofit base URLs need the slash
-    }
-
     /**
-     * Most values are read when Nuvio's network clients are built, so restart the process. If Nuvio
+     * The backend is read when Nuvio's network clients are built, so restart the process. If Nuvio
      * is in the background just end it (it starts again on next use) so nothing pops over the
      * launcher; if it is on screen, use Nuvio's own restart.
      */
