@@ -8,7 +8,10 @@
 The launcher reads Nuvio's data through a **signature**-protected provider, so both APKs must be signed
 with the same key.
 
-Create a keystore once:
+**Zero config:** with no key configured, both apps sign release builds with the build machine's debug
+key. Build both on the same machine and they match. That's enough for a personal install; skip to step 2.
+
+To use your own key instead (e.g. to build on several machines), create a keystore once:
 ```bash
 keytool -genkeypair -keystore vibe.jks -alias vibe -keyalg RSA -keysize 2048 -validity 10000
 ```
@@ -25,9 +28,6 @@ Then point `launcher/local.properties` at it:
 sdk.dir=/path/to/Android/Sdk
 VIBE_SIGNING_PROPERTIES=/absolute/path/to/signing.properties
 ```
-Without it, release builds use the debug key. That also works, as long as both apps are built on the
-same machine.
-
 **Nuvio.** Add the same key to `nuvio/local.properties`:
 ```properties
 NUVIO_RELEASE_STORE_FILE=/absolute/path/to/vibe.jks
@@ -35,8 +35,10 @@ NUVIO_RELEASE_STORE_PASSWORD=...
 NUVIO_RELEASE_KEY_ALIAS=vibe
 NUVIO_RELEASE_KEY_PASSWORD=...
 ```
-Copy the rest of `nuvio/local.example.properties` as needed. On 32-bit TVs (most of them), also set
-`VIBE_ABIS=armeabi-v7a` to build only that ABI.
+Copy the rest of `nuvio/local.example.properties` as needed. Useful ones:
+- `VIBE_ABIS=armeabi-v7a`: build only the 32-bit ABI most TVs use (smaller APK, faster build).
+- Dolby Vision profile 7 → 8.1 conversion is on by default, using the libdovi prebuilts in `nuvio/DV7/`.
+  It needs the Android NDK; AGP installs CMake itself. Set `DOVI_NATIVE_ENABLED=false` to skip it.
 
 Never commit `local.properties`, `signing.properties` or keystores. `.gitignore` already excludes them.
 
