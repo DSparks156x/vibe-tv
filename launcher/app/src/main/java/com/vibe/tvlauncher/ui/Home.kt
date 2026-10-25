@@ -212,7 +212,8 @@ fun LauncherApp(vm: HomeViewModel) {
                 listState.firstVisibleItemScrollOffset < with(density) { 40.dp.toPx() }
         }
     }
-    val onAccount = { if (state.profiles.size > 1) menu = MenuTarget.Profiles else context.launch(Nuvio.mainIntent()) }
+    val onAccount = { menu = MenuTarget.Profiles }
+    LaunchedEffect(state.profilesEvent) { if (state.profilesEvent > 0) onAccount() }
 
     CompositionLocalProvider(LocalSetBackdrop provides setBackdrop, LocalOpenMenu provides openMenu) {
         Box(Modifier.fillMaxSize()) {
@@ -251,7 +252,6 @@ fun LauncherApp(vm: HomeViewModel) {
                     onTab = { tab = it },
                     onSearch = { context.launch(com.vibe.tvlauncher.voice.VoiceActivity.typeIntent(context)) },
                     onAccount = onAccount,
-                    onSettings = { context.launch(Intent(context, com.vibe.tvlauncher.settings.SettingsActivity::class.java)) },
                     onUpdate = state.update?.let { release -> { installUpdate(context, release) } },
                     tabFocus = tabFocus,
                     onDown = {
@@ -697,10 +697,17 @@ private fun LauncherMenu(target: MenuTarget, vm: HomeViewModel, state: HomeState
             ActionMenu(app.label, null, actions, onDismiss)
         }
         MenuTarget.Profiles -> {
-            val actions = state.profiles.map { p ->
-                MenuAction(if (p.active) "${p.name} (current)" else p.name) { p.id?.let { vm.switchProfile(it) } }
-            } + MenuAction("Open Nuvio") { context.launch(Nuvio.mainIntent()) }
-            ActionMenu("Who's watching?", null, actions, onDismiss)
+            // Nuvio profiles (when there's more than one), then the launcher's own settings.
+            val actions = buildList {
+                if (state.profiles.size > 1) state.profiles.forEach { p ->
+                    add(MenuAction(if (p.active) "${p.name} (current)" else p.name) { p.id?.let { vm.switchProfile(it) } })
+                }
+                if (state.nuvio) add(MenuAction("Open Nuvio") { context.launch(Nuvio.mainIntent()) })
+                add(MenuAction("⚙  Vibe settings") {
+                    context.launch(Intent(context, com.vibe.tvlauncher.settings.SettingsActivity::class.java))
+                })
+            }
+            ActionMenu(if (state.profiles.size > 1) "Who's watching?" else state.profile?.name ?: "Vibe", null, actions, onDismiss)
         }
     }
 }

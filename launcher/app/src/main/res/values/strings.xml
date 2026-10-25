@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Vibe TV</string>
+    <string name="remote_keys_label">Vibe remote buttons</string>
+    <string name="remote_keys_description">Lets the profile button on the remote open the Vibe profile picker. Vibe only reads that one button.</string>
 </resources>

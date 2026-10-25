@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -146,7 +145,6 @@ fun TopBar(
     onTab: (Tab) -> Unit,
     onSearch: () -> Unit,
     onAccount: () -> Unit,
-    onSettings: () -> Unit,
     /** Shown as an "Update" chip when a newer launcher release exists. */
     onUpdate: (() -> Unit)?,
     tabFocus: Map<Tab, FocusRequester>,
@@ -181,7 +179,6 @@ fun TopBar(
         Spacer(Modifier.width(10.dp))
         Pill {
             PillIcon(Icons.Filled.Search, "Search", onSearch)
-            PillIcon(Icons.Filled.Settings, "Settings", onSettings)
         }
         if (onUpdate != null) {
             Spacer(Modifier.width(10.dp))

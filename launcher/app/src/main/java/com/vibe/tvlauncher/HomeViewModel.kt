@@ -44,6 +44,8 @@ data class HomeState(
     /** Recently aired episodes of shows you follow that you haven't reached yet. */
     val newEpisodes: List<ContinueItem> = emptyList(),
     val homeEvent: Int = 0,
+    /** Bumped when the remote's profile button asks for the profile picker. */
+    val profilesEvent: Int = 0,
     /** "movie"/"series" -> rows of (title, items) for the Movies and Shows tabs. */
     val browse: Map<String, List<Pair<String, List<Meta>>>> = emptyMap(),
     val weather: Weather? = null,
@@ -99,6 +101,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun homePressed() = _state.update { it.copy(homeEvent = it.homeEvent + 1) }
+
+    fun openProfiles() = _state.update { it.copy(profilesEvent = it.profilesEvent + 1) }
 
     fun reloadApps() {
         viewModelScope.launch {

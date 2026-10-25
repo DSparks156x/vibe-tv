@@ -38,5 +38,11 @@ class MainActivity : ComponentActivity() {
     private fun handleExtras(intent: Intent?) {
         intent?.getStringExtra("avatarUrl")?.let { vm.setAvatarUrl(it) }
         intent?.getStringExtra("location")?.let { vm.setLocation(it) }
+        if (intent?.getStringExtra(EXTRA_OPEN) == OPEN_PROFILES) vm.openProfiles()
+    }
+
+    companion object {
+        const val EXTRA_OPEN = "open"
+        const val OPEN_PROFILES = "profiles"
     }
 }
