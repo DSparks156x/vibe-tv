@@ -127,6 +127,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val app = getApplication<Application>()
         val data = withContext(Dispatchers.IO) {
             if (!Nuvio.isInstalled(app)) return@withContext null
+            history = Nuvio.history(app)
             Triple(Nuvio.continueWatching(app), Nuvio.library(app), Nuvio.profile(app)) to Nuvio.profiles(app)
         }
         _state.update {
@@ -269,26 +270,39 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     private val genreCache = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
     private var tasteKey: List<String> = emptyList()
 
-    /** Continue watching items don't carry genres; look them up once on Cinemeta. */
+    /** Finished titles from Nuvio, most recent first (only the ones that count toward taste). */
+    @Volatile private var history: List<Nuvio.Watched> = emptyList()
+
+    /** Continue watching and history items don't carry genres; look them up once on Cinemeta. */
     private suspend fun loadCwGenres() = withContext(Dispatchers.IO) {
-        val missing = _state.value.continueWatching
-            .filter { it.meta.isImdb && !genreCache.containsKey(it.meta.id) }
-            .take(15)
-        missing.map { c ->
-            async { genreCache[c.meta.id] = Cinemeta.meta(c.meta.type, c.meta.id)?.genres ?: emptyList() }
-        }.forEach { it.await() }
+        val ids = _state.value.continueWatching.map { it.meta.id to it.meta.type } +
+            history.take(HISTORY_TASTE).map { it.id to it.type }
+        ids.filter { (id, _) -> id.startsWith("tt") && !genreCache.containsKey(id) }
+            .distinctBy { it.first }
+            .take(40)
+            .map { (id, type) -> async { genreCache[id] = Cinemeta.meta(type, id)?.genres ?: emptyList() } }
+            .forEach { it.await() }
     }
 
-    /** Genre -> weight. Things you're watching count double vs things you only saved. */
+    /**
+     * Genre -> weight. Things you're watching count double vs things you only saved; finished titles count
+     * like watching, fading with how long ago you watched them.
+     */
     private fun tasteWeights(s: HomeState): Map<String, Double> {
         val w = HashMap<String, Double>()
         s.continueWatching.forEach { c -> genreCache[c.meta.id].orEmpty().forEach { g -> w[g] = (w[g] ?: 0.0) + 2.0 } }
         s.library.forEach { m -> m.genres.forEach { g -> w[g] = (w[g] ?: 0.0) + 1.0 } }
+        val now = System.currentTimeMillis()
+        history.take(HISTORY_TASTE).forEach { h ->
+            val days = ((now - h.lastWatchedMs) / 86_400_000.0).coerceAtLeast(0.0)
+            val weight = 2.0 * Math.pow(0.5, days / 90.0) // half-life of 3 months
+            genreCache[h.id].orEmpty().forEach { g -> w[g] = (w[g] ?: 0.0) + weight }
+        }
         return w
     }
 
     private fun seenIds(s: HomeState): Set<String> =
-        s.continueWatching.map { it.meta.id }.toSet() + s.library.map { it.id }
+        s.continueWatching.map { it.meta.id }.toSet() + s.library.map { it.id } + history.map { it.id }
 
     private fun recompute() {
         val s = _state.value
@@ -486,6 +500,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        /** How many recent finished titles shape taste. */
+        private const val HISTORY_TASTE = 30
         private val MOVIE_GENRES = listOf("Action", "Comedy", "Sci-Fi", "Thriller", "Animation", "Drama", "Horror", "Documentary")
         private val SHOW_GENRES = listOf("Drama", "Comedy", "Crime", "Sci-Fi", "Animation", "Reality-TV", "Documentary", "Mystery")
         private const val TAG = "VibeTV"

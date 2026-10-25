@@ -136,6 +136,18 @@ object Nuvio {
     fun setProfile(context: Context, id: String): Boolean =
         call(context, "set_profile", id, null)?.getBoolean("ok") == true
 
+    /** A finished movie or show (series collapsed), most recent first. Empty on Nuvio builds without history. */
+    data class Watched(val id: String, val type: String, val name: String, val lastWatchedMs: Long)
+
+    fun history(context: Context): List<Watched> = query(context, "history") { c ->
+        Watched(
+            id = c.str("id") ?: return@query null,
+            type = c.str("type") ?: "movie",
+            name = c.str("name") ?: "",
+            lastWatchedMs = c.str("lastWatchedMs")?.toLongOrNull() ?: 0L,
+        )
+    }
+
     /** One of Nuvio's runtime settings (keys and servers a release build can't ship). */
     data class Setting(val key: String, val label: String, val help: String, val type: String, val value: String, val group: String)
 
