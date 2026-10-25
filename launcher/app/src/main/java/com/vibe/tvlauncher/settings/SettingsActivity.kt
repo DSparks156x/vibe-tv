@@ -52,6 +52,7 @@ import androidx.tv.material3.Text
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
+import com.vibe.tvlauncher.data.Nuvio
 import com.vibe.tvlauncher.ui.ActionMenu
 import com.vibe.tvlauncher.ui.Bg
 import com.vibe.tvlauncher.ui.CardBg
@@ -118,6 +119,10 @@ private fun SettingsScreen(version: Int, setupUrl: String?) {
             val r = withContext(Dispatchers.IO) { SettingsRegistry.apply(context, mapOf(key to value)) }
             message = r[key]
             localVersion++
+            // Picking a Nuvio account server only helps once you sign in, so take the user there.
+            if (key == "${SettingsRegistry.NUVIO_PREFIX}account_mode" && r[key] == null && value != "none") {
+                runCatching { context.startActivity(Nuvio.accountIntent()) }
+            }
         }
     }
 

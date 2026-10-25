@@ -234,6 +234,11 @@ object Nuvio {
     fun searchIntent(): Intent =
         Intent(Intent.ACTION_VIEW, Uri.parse("nuvio://search")).setPackage(PACKAGE)
 
+    /** Nuvio's sign-in screen for the chosen account server (older builds just open Nuvio). */
+    fun accountIntent(): Intent =
+        Intent(Intent.ACTION_VIEW, Uri.parse("nuvio://account")).setPackage(PACKAGE)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
     /** Title page in Nuvio. */
     fun detailIntent(meta: Meta): Intent =
         Intent(Intent.ACTION_VIEW, Uri.parse("nuvio://detail/${meta.type}/${Uri.encode(meta.id)}"))
